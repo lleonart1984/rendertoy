@@ -46,24 +46,53 @@ float4x4 = cltools.get_or_register_dtype('float16')
 
 RGBA = cltools.get_or_register_dtype('uchar4')
 
-image1d_t = 'image1d_t'
-image2d_t = 'image2d_t'
-image3d_t = 'image3d_t'
+r_image1d_t = 'read_only image1d_t'
+r_image2d_t = 'read_only image2d_t'
+r_image3d_t = 'read_only image3d_t'
+
+w_image1d_t = 'write_only image1d_t'
+w_image2d_t = 'write_only image2d_t'
+w_image3d_t = 'write_only image3d_t'
+
 
 
 def make_float2(*args):
+    if len(args) == 1 and isinstance(args[0], np.ndarray):
+        return args[0].ravel().view(float2).item()
     return np.array(args, dtype=float2)
 
+
 def make_float3(*args):
-    return np.array(args, dtype=float3)
+    if len(args) == 1 and isinstance(args[0], np.ndarray):
+        args = args[0].ravel().view(np.float32)
+    return np.array(tuple([*args, 0.0]), dtype=float3)
+
 
 def make_float4(*args):
+    if len(args) == 1 and isinstance(args[0], np.ndarray):
+        return args[0].ravel().view(float4).item()
     return np.array(args, dtype=float4)
 
+
 def make_float4x4(*args):
+    if len(args) == 1 and isinstance(args[0], np.ndarray):
+        return args[0].ravel().view(float4x4).item()
     return np.array(args, dtype=float4x4)
 
 
+def to_array(v):
+    v_shape = v.shape
+    if v.shape == ():
+        v = np.expand_dims(v, 0)
+    if v.dtype == float2:
+        return v.view(np.float32).reshape(*v_shape, 2)
+    elif v.dtype == float3:
+        return v.view(np.float32).reshape(*v_shape, 4)[..., 0:3]
+    elif v.dtype == float4:
+        return v.view(np.float32).reshape(*v_shape, 4)
+    elif v.dtype == float4x4:
+        return v.view(np.float32).reshape(*v_shape, 4, 4)
+    return v
 
 
 def _get_signature(f):
@@ -89,7 +118,7 @@ def _get_annotation_as_cltype(annotation, assert_no_pointer=False):
         is_pointer = True
         annotation = annotation[0]
     if isinstance(annotation, str):  # object types
-        return "read_write "+annotation
+        return annotation
     if assert_no_pointer:
         assert not is_pointer, "Can not use pointers in kernel auxiliary functions"
     return ("__global " if is_pointer else "")+cltools.dtype_to_ctype(annotation) +("*" if is_pointer else "")
@@ -267,9 +296,9 @@ def identity():
 
 def translate(*args):
     if len(args) == 1:
-        x,y,z = args[0]
+        x, y, z = to_array(args[0])
     else:
-        x,y,z = args
+        x, y, z = args
     return make_float4x4(
         1.0, 0.0, 0.0, 0.0,
         0.0, 1.0, 0.0, 0.0,
@@ -280,12 +309,109 @@ def translate(*args):
 
 def scale(*args):
     if len(args) == 1:
-        x,y,z = args[0]
+        if np.isscalar(args[0]):
+            x, y, z = args[0], args[0], args[0]
+        else:
+            x, y, z = to_array(args[0])
     else:
-        x,y,z = args
+        x, y, z = args
     return make_float4x4(
         x, 0.0, 0.0, 0.0,
         0.0, y, 0.0, 0.0,
         0.0, 0.0, z, 0.0,
         0.0, 0.0, 0.0, 1.0
     )
+
+
+def rotate(angle, axis):
+    cos = np.cos(angle)
+    sin = np.sin(angle)
+    x, y, z = to_array(axis)
+    return make_float4x4(
+        x * x * (1 - cos) + cos, y * x * (1 - cos) + z * sin, z * x * (1 - cos) - y * sin, 0,
+        x * y * (1 - cos) - z * sin, y * y * (1 - cos) + cos, z * y * (1 - cos) + x * sin, 0,
+        x * z * (1 - cos) + y * sin, y * z * (1 - cos) - x * sin, z * z * (1 - cos) + cos, 0,
+        0, 0, 0, 1
+    )
+
+
+__COMPONENTS_FROM_TYPE__ = {
+    float2: 2,
+    float3: 3,
+    float4: 4
+}
+
+
+def matmul(a, b):
+    assert a.dtype == float4 or a.dtype == float4x4, "First vector must be a float4 or a matrix float4x4"
+    assert b.dtype == float4x4, "Second argument must be a matrix"
+    a_is_vec = a.dtype == float4
+    a = to_array(a)
+    b = to_array(b)
+    c = a @ b
+    if a_is_vec:
+        return make_float4(c)
+    else:
+        return make_float4x4(c)
+
+
+def dot(v1, v2):
+    assert v1.dtype == v2.dtype, "Can not apply dot product between different vector types"
+    assert v1.shape == v2.shape, "Can not apply dot product between different vector types"
+    if v1.dtype == float2:
+        return (v1['x']*v2['x']+v1['y']*v2['y']).item()
+    elif v1.dtype == float3:
+        return (v1['x']*v2['x']+v1['y']*v2['y'] + v1['z']*v2['z']).item()
+    elif v1.dtype == float4:
+        return (v1['x']*v2['x']+v1['y']*v2['y'] + v1['z']*v2['z'] + v1['w']*v2['w']).item()
+    raise Exception('Not valid dtype')
+
+
+def normalize(v):
+    v_dtype = v.dtype
+    l = np.sqrt(dot(v, v))
+    v = to_array(v) / l
+    if v_dtype == float3:
+        return make_float3(v)
+    else:
+        return (v / l).view(v_dtype)
+
+
+def cross(v1, v2):
+    return make_float3(
+        (v1['y'] * v2['z'] - v1['z'] * v2['y']).item(),
+        (v1['z'] * v2['x'] - v1['x'] * v2['z']).item(),
+        (v1['x'] * v2['y'] - v1['y'] * v2['x']).item()
+    )
+
+
+def direction(f, t):
+    f = to_array(f)
+    t = to_array(t)
+    d = make_float3(t - f)
+    return normalize(d)
+
+
+def look_at(camera, target, up_vector):
+    zaxis = direction(camera, target)
+    xaxis = normalize(cross(up_vector, zaxis))
+    yaxis = cross(zaxis, xaxis)
+    return make_float4x4(
+        xaxis['x'], yaxis['x'], zaxis['x'], 0,
+        xaxis['y'], yaxis['y'], zaxis['y'], 0,
+        xaxis['z'], yaxis['z'], zaxis['z'], 0,
+        -dot(xaxis, camera), -dot(yaxis, camera), -dot(zaxis, camera), 1
+    )
+
+
+def perspective(fov = 3.141593 / 4, aspect_ratio = 1.0, znear = .01, zfar = 100.0):
+    hs = 1.0 / np.tan(fov / 2)
+    ws = hs / aspect_ratio
+    return make_float4x4(
+        ws, 0, 0, 0,
+        0, hs, 0, 0,
+        0, 0, zfar / (zfar - znear), 1.0,
+        0, 0, -znear * zfar / (zfar - znear), 0
+    )
+
+

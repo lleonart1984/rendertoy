@@ -24,7 +24,7 @@ y = ren.create_buffer(100, np.float32)
 """
 In rendering, kernels are defined in a form of a function with all arguments annotated with valid types. i.e. numpy dtypes or int, or float.
 Arguments that are global pointers must be specified as a list. e.g. [np.float32] represents a float* 
-Intrinsicly there is a variable with the current thread id. Notice kernels will be invoke for all thread indices from 0 ... num_threads when dispatch.
+Intrinsicly there is a variable with the current thread id. Notice kernels will be invoke for all thread indices from 0 ... num_threads-1 when dispatch.
 """
 
 @ren.kernel_main

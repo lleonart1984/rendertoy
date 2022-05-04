@@ -28,7 +28,7 @@ def get_color(m: np.float32) -> ren.float4:
     """
 
 @ren.kernel_main
-def compute_mandelbrot(im: ren.image2d_t, info: MandelbrotInfo):
+def compute_mandelbrot(im: ren.w_image2d_t, info: MandelbrotInfo):
     """
     int2 dim = get_image_dim(im);
     // in rendering, only linear layout of threads is allowed. Mapping to image positions needs to be done manually.

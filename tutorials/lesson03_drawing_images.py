@@ -13,7 +13,7 @@ with ren.mapped(im) as map:
 
 # define a kernel to apply an action for every pixel
 @ren.kernel_main
-def clear_image(im: ren.image2d_t):  # the argument is annotated with the image type. In rendering all images are treated as read_write for simplicity.
+def clear_image(im: ren.w_image2d_t):  # the argument is annotated with the image type. In rendering all images are treated as read_write for simplicity.
     """
     int2 dim = get_image_dim(im);
     // in rendering, only linear layout of threads is allowed. Mapping to image positions needs to be done manually.

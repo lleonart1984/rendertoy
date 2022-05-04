@@ -38,7 +38,7 @@ transform_info = ren.create_struct(Transforms)
 
 
 @ren.kernel_main
-def transform_and_draw(im: ren.image2d_t, vertices: [Vertex], info: Transforms):
+def transform_and_draw(im: ren.w_image2d_t, vertices: [Vertex], info: Transforms):
     """
     int2 dim = get_image_dim(im);
     float3 P = vertices[thread_id].P;
