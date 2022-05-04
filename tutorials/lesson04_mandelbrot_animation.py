@@ -1,3 +1,18 @@
+# If file is run as a script add parent directory to path
+# This allow import rendering module
+if __name__ == "__main__":
+    import sys
+    import os
+    import inspect
+
+    currentdir = os.path.dirname(
+        os.path.abspath(inspect.getfile(inspect.currentframe()))
+    )
+    parentdir = os.path.dirname(currentdir)
+    sys.path.insert(0, parentdir)
+    ROOT_DIR = str(parentdir)
+
+
 import rendering as ren
 import time
 import numpy as np
@@ -26,6 +41,7 @@ def get_color(m: np.float32) -> ren.float4:
     float s = 2*(1.0f / (1 + exp(-m)) - 0.5f);
     return (float4)(0.0f, 1.0f-s, fmod(s+0.5,1.0), 1.0f);
     """
+
 
 @ren.kernel_main
 def compute_mandelbrot(im: ren.w_image2d_t, info: MandelbrotInfo):
@@ -63,9 +79,13 @@ while True:
     t = time.perf_counter() - start_time
 
     with ren.mapped(mandelbrot_info) as map:
-        map['N'] = 100
-        map['C'] = np.array((0.09 + np.cos(t*0.7)*0.01, 0.61 + np.sin(t)*0.01), dtype=ren.float2)
+        map["N"] = 100
+        map["C"] = np.array(
+            (0.09 + np.cos(t * 0.7) * 0.01, 0.61 + np.sin(t) * 0.01), dtype=ren.float2
+        )
 
-    compute_mandelbrot[presenter.get_render_target().shape](presenter.get_render_target(), mandelbrot_info)
+    compute_mandelbrot[presenter.get_render_target().shape](
+        presenter.get_render_target(), mandelbrot_info
+    )
 
     presenter.present()

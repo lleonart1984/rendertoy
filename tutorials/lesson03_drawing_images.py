@@ -1,3 +1,17 @@
+# If file is run as a script add parent directory to path
+# This allow import rendering module
+if __name__ == "__main__":
+    import sys
+    import os
+    import inspect
+
+    currentdir = os.path.dirname(
+        os.path.abspath(inspect.getfile(inspect.currentframe()))
+    )
+    parentdir = os.path.dirname(currentdir)
+    sys.path.insert(0, parentdir)
+    ROOT_DIR = str(parentdir)
+
 import rendering as ren
 
 
@@ -6,14 +20,18 @@ im = ren.create_image2d(6, 4, ren.float4)
 
 # map image memory as a numpy array with shape (4, 6, 4) height, width, components, and dtype = float32
 with ren.mapped(im) as map:
-    map[:,:,0] = 1  # change all red components to 1 as an example of what can be done with the mapped memory.
+    map[
+        :, :, 0
+    ] = 1  # change all red components to 1 as an example of what can be done with the mapped memory.
     print(map)
 # outside the context region (with) the mapped memory is updated to the resource (image).
 
 
 # define a kernel to apply an action for every pixel
 @ren.kernel_main
-def clear_image(im: ren.w_image2d_t):  # the argument is annotated with the image type. In rendering all images are treated as read_write for simplicity.
+def clear_image(
+    im: ren.w_image2d_t,
+):  # the argument is annotated with the image type. In rendering all images are treated as read_write for simplicity.
     """
     int2 dim = get_image_dim(im);
     // in rendering, only linear layout of threads is allowed. Mapping to image positions needs to be done manually.

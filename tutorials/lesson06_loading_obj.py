@@ -1,3 +1,19 @@
+ROOT_DIR = "./"  # Used to find the models folder
+
+# If file is run as a script add parent directory to path
+# This allow import rendering module
+if __name__ == "__main__":
+    import sys
+    import os
+    import inspect
+
+    currentdir = os.path.dirname(
+        os.path.abspath(inspect.getfile(inspect.currentframe()))
+    )
+    parentdir = os.path.dirname(currentdir)
+    sys.path.insert(0, parentdir)
+    ROOT_DIR = str(parentdir)
+
 import rendering as ren
 import time
 import numpy as np
@@ -9,7 +25,7 @@ In this lesson, a point cloud loaded from a wavefront obj file is rendered after
 
 
 # Load vertex buffer from obj
-visuals = ren.load_obj('../models/dragon.obj')
+visuals = ren.load_obj(f"{ROOT_DIR}/models/dragon.obj")
 mesh, material = visuals[0]
 vertex_buffer = mesh.vertices
 
@@ -26,7 +42,9 @@ transform_info = ren.create_struct(Transforms)
 
 
 @ren.kernel_main
-def transform_and_draw(im: ren.w_image2d_t, vertices: [ren.MeshVertex], info: Transforms):
+def transform_and_draw(
+    im: ren.w_image2d_t, vertices: [ren.MeshVertex], info: Transforms
+):
     """
     int2 dim = get_image_dim(im);
     float3 P = vertices[thread_id].P;
@@ -68,12 +86,20 @@ while True:
 
     # update the transformation matrices from host every frame
     with ren.mapped(transform_info) as map:
-        map['World'] = ren.matmul(ren.scale(1.0), ren.rotate(t, ren.make_float3(0, 1, 0)))
-        map['View'] = ren.look_at(ren.make_float3(0,0.3,2), ren.make_float3(0,0,0), ren.make_float3(0,1,0))
-        map['Proj'] = ren.perspective(aspect_ratio=presenter.width / presenter.height)
+        map["World"] = ren.matmul(
+            ren.scale(1.0), ren.rotate(t, ren.make_float3(0, 1, 0))
+        )
+        map["View"] = ren.look_at(
+            ren.make_float3(0, 0.3, 2),
+            ren.make_float3(0, 0, 0),
+            ren.make_float3(0, 1, 0),
+        )
+        map["Proj"] = ren.perspective(aspect_ratio=presenter.width / presenter.height)
 
     ren.clear(presenter.get_render_target())
 
-    transform_and_draw[vertex_buffer.shape](presenter.get_render_target(), vertex_buffer, transform_info)
+    transform_and_draw[vertex_buffer.shape](
+        presenter.get_render_target(), vertex_buffer, transform_info
+    )
 
     presenter.present()

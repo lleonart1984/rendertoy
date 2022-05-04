@@ -1,3 +1,18 @@
+# If file is run as a script add parent directory to path
+# This allow import rendering module
+if __name__ == "__main__":
+    import sys
+    import os
+    import inspect
+
+    currentdir = os.path.dirname(
+        os.path.abspath(inspect.getfile(inspect.currentframe()))
+    )
+    parentdir = os.path.dirname(currentdir)
+    sys.path.insert(0, parentdir)
+    ROOT_DIR = str(parentdir)
+
+
 # importing rendering functions.
 import rendering as ren
 import numpy as np
@@ -27,11 +42,13 @@ Arguments that are global pointers must be specified as a list. e.g. [np.float32
 Intrinsicly there is a variable with the current thread id. Notice kernels will be invoke for all thread indices from 0 ... num_threads-1 when dispatch.
 """
 
+
 @ren.kernel_main
 def compute(x: [np.float32], y: [np.float32]):
     """
     y[thread_id] = sin(x[thread_id]); // OpenCL has a variety of math functions as builtins
     """
+
 
 # Executing the kernel. name_of_function [ Number of threads ] ( arguments )
 compute[100](x, y)
