@@ -13,7 +13,7 @@ In this lesson, a point cloud created with generative modeling techniques is sho
 # Create a manifold mesh to represent the surface.
 mesh = ren.manifold(48, 48)
 
-control_points = ren.create_buffer(4, ren.float3)
+control_points = ren.create_buffer(5, ren.float3)
 
 
 @ren.kernel_function
@@ -118,11 +118,12 @@ while True:
         map[:] = [
             ren.make_float3(0, 0, 0),
             ren.make_float3(1, 0, 0),
-            ren.make_float3(1 + np.cos(t*7)*0.4, 1, 0),
+            ren.make_float3(1 + np.sin(t*9)*0.4, 1 + np.sin(t * 2) * 0.3, 0),
+            ren.make_float3(1 + np.cos(t*7)*0.2, 1.5 + np.cos(t*3)*0.4, 0),
             ren.make_float3(0, 1 + np.sin(t*4)*0.4, 0)
         ]
 
-    perform_parametric_transform[vertex_buffer.shape](vertex_buffer, control_points, 4)
+    perform_parametric_transform[vertex_buffer.shape](vertex_buffer, control_points, len(control_points))
 
     # update the transformation matrices from host every frame
     with ren.mapped(transform_info) as map:
