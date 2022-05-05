@@ -37,7 +37,8 @@ class Presenter:
             )
             self.event = sdl2.SDL_Event()
         self.render_target = create_image2d(self.width, self.height, RGBA)
-        self.last_time = None
+        self.first_time = None
+        self.frames = 0
 
     def get_render_target(self):
         return self.render_target
@@ -77,11 +78,12 @@ class Presenter:
         sdl2.SDL_UnlockTexture(self.sdl_texture)
         sdl2.SDL_RenderCopy(self.sdl_renderer, self.sdl_texture, None, None)
         sdl2.SDL_RenderPresent(self.sdl_renderer)
-        if self.last_time is not None:
-            duration = time.perf_counter() - self.last_time
-            FPS = 1 / max(0.00000001, duration)
-            sdl2.SDL_SetWindowTitle(self.window, bytes(f"FPS: {FPS}", "utf8"))
-        self.last_time = time.perf_counter()
+        if self.first_time is None:
+            self.first_time = time.perf_counter()
+        self.frames += 1
+        duration = time.perf_counter() - self.first_time
+        FPS = self.frames / max(0.00000001, duration)
+        sdl2.SDL_SetWindowTitle(self.window, bytes(f"FPS: {FPS}", "utf8"))
 
 
 def create_presenter(width: int, height: int) -> Presenter:
