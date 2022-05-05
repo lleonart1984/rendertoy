@@ -6,7 +6,7 @@ from ._core import kernel_main, kernel_struct, create_buffer_from, create_buffer
 
 from ._core import float2, float3, float4, int2, int3, int4, uint2, uint3, uint4, float4x4
 
-from ._modeling import Mesh, WeldMode, SubdivisionMode, MeshVertex
+from ._modeling import Mesh, WeldMode, SubdivisionMode, MeshVertex, manifold
 
 from ._loaders import load_obj
 
