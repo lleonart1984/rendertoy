@@ -8,4 +8,6 @@
 
 # import tutorials.lesson05_drawing_points
 
-import tutorials.lesson06_loading_obj
+# import tutorials.lesson06_loading_obj
+
+import tutorials.lesson07_generative_modeling
