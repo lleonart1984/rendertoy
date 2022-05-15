@@ -24,6 +24,39 @@ float4x4 transpose( float4x4 m )
     return m;
 }
 
+float4x4 rotation(float angle, float3 axis)
+{
+    float c = cos(angle);
+    float s = sin(angle);
+    float x = axis.x;
+    float y = axis.y;
+    float z = axis.z;
+    return (float4x4)(
+        x * x * (1 - c) + c, y * x * (1 - c) + z * s, z * x * (1 - c) - y * s, 0,
+        x * y * (1 - c) - z * s, y * y * (1 - c) + c, z * y * (1 - c) + x * s, 0,
+        x * z * (1 - c) + y * s, y * z * (1 - c) - x * s, z * z * (1 - c) + c, 0,
+        0, 0, 0, 1
+    );
+}
+
+float4x4 translate(float3 v){
+    return (float4x4)(
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        v.x, v.y, v.z, 1
+    );
+}   
+
+float4x4 scale(float3 v){
+    return (float4x4)(
+        v.x, 0, 0, 0,
+        0, v.y, 0, 0,
+        0, 0, v.z, 0,
+        0, 0, 0, 1
+    );
+}   
+
 float4 mul(float4 v, float4x4 m) {
     return (float4)(dot(v, m.even.even), dot(v, m.odd.even), dot(v, m.even.odd), dot(v, m.odd.odd));    
 }

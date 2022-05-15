@@ -6,14 +6,57 @@ import numpy as np
 
 
 """
-In this lesson, a point cloud loaded from a wavefront obj file is rendered after transformation
+In this lesson, a point cloud created with generative modeling techniques is shown. 
 """
 
 
-# Load vertex buffer from obj
-visuals = ren.load_obj('../models/dragon.obj')
-mesh, material = visuals[0]
+# Create a manifold mesh to represent the surface.
+mesh = ren.manifold(48, 48)
+
+control_points = ren.create_buffer(5, ren.float3)
+
+
+@ren.kernel_function
+def C_n_k(n: int, k: int) -> int:
+    """
+    if (k < n - k) k = n - k;
+    long f = 1;
+    for (int i = k + 1; i <= n; i++)
+        f *= i;
+    for (int i = 2; i <= n - k; i++)
+        f /= i;
+    return (int)f;
+    """
+
+
+@ren.kernel_main
+def perform_parametric_transform(vertices: [ren.MeshVertex], cps: [ren.float3], cp_count: int):
+    """
+    float2 uv = vertices[thread_id].C;
+
+    float u = uv.x;
+    float v = uv.y;
+
+    // Evaluate bezier
+    float t = u;
+    float3 p = (float3)(0,0,0);
+    int n = cp_count - 1;
+    for (int k = 0; k <= n; k++)
+        p += cps[k] * C_n_k(n, k) * pow(t, (float)k) * pow(1 - t, (float)(n - k));
+
+    // Evaluate rotation
+    float4x4 rot = rotation(v * 3.141593 * 2, (float3)(0,1,0));
+    float4 h = (float4)(p.x, p.y, p.z, 1.0);
+    h = mul(h, rot);
+
+    float3 position = h.xyz;
+
+    vertices[thread_id].P = position; // update position of the mesh with computed parametric transformation
+    """
+
+
 vertex_buffer = mesh.vertices
+
 
 
 @ren.kernel_struct
@@ -34,7 +77,7 @@ def transform_and_draw(
     """
     int2 dim = get_image_dim(im);
     float3 P = vertices[thread_id].P;
-    float3 C = vertices[thread_id].N * 0.5f + 0.5f; // use normals as a color for debugging purposes
+    float3 C = (float3)(1.0, 1.0, 0.3);
 
     float4 H = (float4)(P.x, P.y, P.z, 1.0); // extend 3D position to a homogeneous coordinates
 
@@ -70,14 +113,26 @@ while True:
     # t is the elapsed time
     t = time.perf_counter() - start_time
 
+    # update control points wrt the time
+    with ren.mapped(control_points) as map:
+        map[:] = [
+            ren.make_float3(0, 0, 0),
+            ren.make_float3(1, 0, 0),
+            ren.make_float3(1 + np.sin(t*9)*0.4, 1 + np.sin(t * 2) * 0.3, 0),
+            ren.make_float3(1 + np.cos(t*7)*0.2, 1.5 + np.cos(t*3)*0.4, 0),
+            ren.make_float3(0, 1 + np.sin(t*4)*0.4, 0)
+        ]
+
+    perform_parametric_transform[vertex_buffer.shape](vertex_buffer, control_points, len(control_points))
+
     # update the transformation matrices from host every frame
     with ren.mapped(transform_info) as map:
         map["World"] = ren.matmul(
-            ren.scale(1.0), ren.rotate(t, ren.make_float3(0, 1, 0))
+            ren.scale(1.0), ren.rotate(t, ren.normalize(ren.make_float3(1, 1, 0)))
         )
         map["View"] = ren.look_at(
-            ren.make_float3(0, 0.3, 2),
-            ren.make_float3(0, 0, 0),
+            ren.make_float3(0, 3.5, 4.5),
+            ren.make_float3(0, 1, 0),
             ren.make_float3(0, 1, 0),
         )
         map["Proj"] = ren.perspective(aspect_ratio=presenter.width / presenter.height)
@@ -89,3 +144,5 @@ while True:
     )
 
     presenter.present()
+
+print("[INFO] Terminated...")
