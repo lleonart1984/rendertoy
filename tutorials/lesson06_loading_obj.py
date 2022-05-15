@@ -9,7 +9,7 @@ In this lesson, a point cloud loaded from a wavefront obj file is rendered after
 
 
 # Load vertex buffer from obj
-visuals = ren.load_obj('../models/dragon.obj')
+visuals = ren.load_obj('./models/dragon.obj')
 mesh, material = visuals[0]
 vertex_buffer = mesh.vertices
 
@@ -68,7 +68,7 @@ while True:
 
     # update the transformation matrices from host every frame
     with ren.mapped(transform_info) as map:
-        map['World'] = ren.matmul(ren.scale(1.0), ren.rotate(t, ren.make_float3(0, 1, 0)))
+        map['World'] = ren.rotate(t, ren.make_float3(0, 1, 0))
         map['View'] = ren.look_at(ren.make_float3(0,0.3,2), ren.make_float3(0,0,0), ren.make_float3(0,1,0))
         map['Proj'] = ren.perspective(aspect_ratio=presenter.width / presenter.height)
 

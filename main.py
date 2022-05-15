@@ -6,4 +6,6 @@
 
 # import tutorials.lesson04_mandelbrot_animation
 
-import tutorials.lesson05_drawing_points
+# import tutorials.lesson05_drawing_points
+
+import tutorials.lesson06_loading_obj
