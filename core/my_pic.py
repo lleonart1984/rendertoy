@@ -119,7 +119,7 @@ while True:
     # update the transformation matrices from host every frame
     with ren.mapped(transform_info) as map:
         map['World'] = ren.rotate(t, np.array([0, 1, 0]))
-        map['View'] = ren.identity() #ren.translate(np.cos(t*4)*0.2, np.sin(t)*0.1, 0.2)
+        map['View'] = ren.translate(np.cos(t*4)*0.2, np.sin(t)*0.1, 0.2)
         map['Proj'] = ren.identity()
 
     ren.clear(presenter.get_render_target())
