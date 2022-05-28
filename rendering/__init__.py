@@ -11,3 +11,5 @@ from ._modeling import Mesh, WeldMode, SubdivisionMode, MeshVertex, manifold
 from ._loaders import load_obj
 
 from ._presentation import create_presenter, Presenter, Event
+
+from ._raster import Raster

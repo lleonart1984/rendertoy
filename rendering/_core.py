@@ -9,6 +9,7 @@ import typing
 
 __ctx__ = cl.create_some_context()
 __queue__ = cl.CommandQueue(__ctx__)
+
 __code__ = """
 #define float4x4 float16
 
@@ -87,6 +88,23 @@ w_image1d_t = 'write_only image1d_t'
 w_image2d_t = 'write_only image2d_t'
 w_image3d_t = 'write_only image3d_t'
 
+
+def make_int2(*args):
+    if len(args) == 1 and isinstance(args[0], np.ndarray):
+        return args[0].ravel().view(int2).item()
+    return np.array(args, dtype=int2)
+
+
+def make_int3(*args):
+    if len(args) == 1 and isinstance(args[0], np.ndarray):
+        args = args[0].ravel().view(np.int32)
+    return np.array(tuple([*args, 0]), dtype=int3)
+
+
+def make_int4(*args):
+    if len(args) == 1 and isinstance(args[0], np.ndarray):
+        return args[0].ravel().view(int4).item()
+    return np.array(args, dtype=int4)
 
 
 def make_float2(*args):
@@ -167,30 +185,46 @@ def kernel_function(f):
 {inspect.getdoc(f)}
 }}
 """
-    def wrapper(*args):
-        raise Exception("Can not call to this function from host.")
-    return wrapper
+    class wrapper:
+        def __init__(self):
+            self.name = name
+            self.signature = s
+            self.return_annotation = return_annotation
+        def __call__(self, *args):
+            raise Exception("Can not call to this function from host.")
+    return wrapper()
 
 
-def kernel_main(f):
-    s, return_annotation = _get_signature(f)
-    assert return_annotation == inspect.Signature.empty, "Kernel main function must return void"
-    name = f.__name__
+def build_kernel_function(name, arguments, return_type, body):
     global __code__
+    signature = ', '.join(_get_annotation_as_cltype(annotation, True)+" "+ arg_name for arg_name, annotation in arguments.items())
+    return_type = _get_annotation_as_cltype(return_type, True)
     __code__ += f"""
-__kernel void {name}({', '.join(_get_annotation_as_cltype(v.annotation)+" "+v.name for k,v in s)}) {{
-int thread_id = get_global_id(0);
-{inspect.getdoc(f)}
-}}
-    """
-    # print(__code__)
+    {return_type} {name}({signature}) {{
+    {body}
+    }}
+        """
+
+
+def build_kernel_main(name, arguments, body):
+    global __code__
+    signature = ', '.join(_get_annotation_as_cltype(annotation)+" "+ arg_name for arg_name, annotation in arguments.items())
+    __code__ += f"""
+    __kernel void {name}({signature}) {{
+    int thread_id = get_global_id(0);
+    {body}
+    }}
+        """
     program = None
+
     class Dispatcher:
         def __init__(self):
             pass
+
         def __getitem__(self, num_threads):
             if isinstance(num_threads, list) or isinstance(num_threads, tuple):
                 num_threads = math.prod(num_threads)
+
             def resolve_arg(a, annotation):
                 if isinstance(a, cla.Array):
                     if isinstance(annotation, list):
@@ -198,16 +232,30 @@ int thread_id = get_global_id(0);
                     else:
                         a = a.get()  # pass the numpy array as a value transfer.
                 if isinstance(a, int):
-                    a = np.int32(a)
+                    a = np.int32(a)  # treat python numeric values in the 32 bit form
+                if isinstance(a, float):
+                    a = np.float32(a)  # treat python numeric values in the 32 bit form
                 return a
+
             def dispatch_call(*args):
                 nonlocal program
                 if program is None:
                     program = cl.Program(__ctx__, __code__).build()
                 kernel = program.__getattr__(name)
-                kernel(__queue__, (num_threads,), None, *[resolve_arg(a, v.annotation) for a, (k,v) in zip(args,s)])
+                kernel(__queue__, (num_threads,), None, *[resolve_arg(a, v) for a, (k, v) in zip(args, arguments.items())])
+
             return dispatch_call
+
     return Dispatcher()
+
+
+def kernel_main(f):
+    s, return_annotation = _get_signature(f)
+    assert return_annotation == inspect.Signature.empty, "Kernel main function must return void"
+    name = f.__name__
+    arguments = { v.name: v.annotation for _,v in s }
+    body = inspect.getdoc(f)
+    return build_kernel_main(name, arguments, body)
 
 
 def kernel_struct(cls):
@@ -279,10 +327,14 @@ def create_image2d(width: int, height: int, dtype: np.dtype):
 
 
 def clear(b, value = np.float32(0)):
+    if isinstance(value, float):
+        value = np.float32(value)
     if not isinstance(value, np.ndarray):
         value = np.array(value)
+    if isinstance(b, cla.Array):
+        b = b.base_data
     if isinstance(b, Buffer):
-        cl.enqueue_fill_buffer(__queue__, b, value, 0, value.nbytes)
+        cl.enqueue_fill_buffer(__queue__, b, value, 0, b.size)
     else:
         if math.prod(value.shape) <= 1:
             value = np.array([value]*4)
