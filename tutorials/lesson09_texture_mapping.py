@@ -90,9 +90,8 @@ def transform_and_draw(
 @ren.kernel_function
 def fragment_to_color(fragment: Vertex_Out, info: Materials) -> ren.float4:
     """
-    float3 diff = sample2D(info.DiffuseMap, fragment.C).xyz * fragment.L;
-    return (float4)(diff.x, diff.y, diff.z, 1);
-    //return (float4)(fragment.C.x, fragment.C.y, fragment.C.z, 1);
+    float3 diff = sample2D(info.DiffuseMap, fragment.C).xyz;
+    return (float4)(diff * fragment.L, 1);
     """
 
 
