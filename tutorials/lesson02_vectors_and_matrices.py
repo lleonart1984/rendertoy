@@ -22,7 +22,7 @@ y = ren.create_buffer(x.shape[0], ren.float3)
 
 with ren.mapped(x) as map:
     np.copyto(
-        map, np.random.rand(*map.shape, 4).astype(np.float32).ravel().view(ren.float3)
+        map.view(np.float32).reshape(-1, 4), np.random.rand(map.shape[0], 4).astype(np.float32)
     )
 
 with ren.mapped(T) as map:
