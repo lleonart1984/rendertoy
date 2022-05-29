@@ -22,7 +22,7 @@ class Vertex:
 num_vertex = 10000
 vertex_buffer = ren.create_buffer(num_vertex, Vertex)
 
-# fill vertices with a sphere.
+# fill vertices with a box.
 with ren.mapped(vertex_buffer) as map:
     # the number of float numbers in positions and colors are not 3 floats per vertex but 4 because of the padding imposse to float3
     map["P"] = (
@@ -53,6 +53,7 @@ def transform_and_draw(im: ren.w_image2d_t, vertices: [Vertex], info: Transforms
     """
     int2 dim = get_image_dim(im);
     float3 P = vertices[thread_id].P;
+
     float3 C = vertices[thread_id].C;
 
     float4 H = (float4)(P.x, P.y, P.z, 1.0); // extend 3D position to a homogeneous coordinates
