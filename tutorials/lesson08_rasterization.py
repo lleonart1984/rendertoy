@@ -6,7 +6,7 @@ import numpy as np
 
 
 """
-In this lesson, a point cloud loaded from a wavefront obj file is rasterized with two shaders as a point
+In this lesson, a point cloud loaded from a wavefront obj file is rasterized with two shaders as points or triangles
 """
 
 
@@ -101,7 +101,7 @@ while True:
     ren.clear(raster.get_render_target())
     ren.clear(raster.get_depth_buffer(), 1.0)
     # Using a rasterizer to draw the point instead of handling everything by ourself.
-    raster.draw_points(vertex_buffer)
-    # raster.draw_triangles(vertex_buffer, index_buffer)
+    # raster.draw_points(vertex_buffer)
+    raster.draw_triangles(vertex_buffer, index_buffer)
 
     presenter.present()
