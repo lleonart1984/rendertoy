@@ -170,7 +170,7 @@ __OBJECT_TYPE_TO_CLTYPE__ = {
 }
 
 
-def _get_annotation_as_cltype(annotation, assert_no_pointer=False):
+def _get_annotation_as_cltype(annotation):
     if annotation is None:
         return "void"
     is_pointer = False
@@ -180,8 +180,6 @@ def _get_annotation_as_cltype(annotation, assert_no_pointer=False):
         annotation = annotation[0]
     if isinstance(annotation, str):  # object types
         return annotation
-    if assert_no_pointer:
-        assert not is_pointer, "Can not use pointers in kernel auxiliary functions"
     return ("__global " if is_pointer else "")+cltools.dtype_to_ctype(annotation) +("*" if is_pointer else "")
 
 
@@ -191,7 +189,7 @@ def kernel_function(f):
     global __code__
 
     __code__ += f"""
-{_get_annotation_as_cltype(return_annotation, assert_no_pointer=True)} {name}({', '.join(_get_annotation_as_cltype(v.annotation, assert_no_pointer=True) + " " + v.name for k, v in s)}) {{
+{_get_annotation_as_cltype(return_annotation)} {name}({', '.join(_get_annotation_as_cltype(v.annotation) + " " + v.name for k, v in s)}) {{
 {inspect.getdoc(f)}
 }}
 """
@@ -207,8 +205,8 @@ def kernel_function(f):
 
 def build_kernel_function(name, arguments, return_type, body):
     global __code__
-    signature = ', '.join(_get_annotation_as_cltype(annotation, True)+" "+ arg_name for arg_name, annotation in arguments.items())
-    return_type = _get_annotation_as_cltype(return_type, True)
+    signature = ', '.join(_get_annotation_as_cltype(annotation)+" "+ arg_name for arg_name, annotation in arguments.items())
+    return_type = _get_annotation_as_cltype(return_type)
     __code__ += f"""
     {return_type} {name}({signature}) {{
     {body}
