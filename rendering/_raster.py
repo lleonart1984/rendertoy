@@ -1,5 +1,5 @@
 from enum import IntEnum
-from ._core import build_kernel_main, build_kernel_function, float2, float4, __ctx__, w_image2d_t, create_buffer, make_float2, int2, make_int2
+from ._core import build_kernel_main, build_kernel_function, float2, float4, __ctx__, w_image2d_t, create_buffer, make_float2, int2, make_int2, MemoryPool
 import inspect
 import pyopencl.tools as cltools
 import numpy as np

@@ -62,6 +62,14 @@ float4 mul(float4 v, float4x4 m) {
     return (float4)(dot(v, m.even.even), dot(v, m.odd.even), dot(v, m.even.odd), dot(v, m.odd.odd));    
 }
 
+
+__global char* memory_pool;
+
+
+#define wrap_coord(c) (fmod(fmod(c, 1.0f) + 1.0f, 1.0f))
+
+#define sample2D(texture, c) (((float4*)(memory_pool + (texture).offset + 16*((int)(wrap_coord((c).y) * (texture).height) * (texture).width + (int)(wrap_coord((c).x) * (texture).width))))[0]) 
+
 """
 
 float2 = cltools.get_or_register_dtype('float2')
@@ -87,6 +95,8 @@ r_image3d_t = 'read_only image3d_t'
 w_image1d_t = 'write_only image1d_t'
 w_image2d_t = 'write_only image2d_t'
 w_image3d_t = 'write_only image3d_t'
+
+Texture2D = 'Texture2D'
 
 
 def make_int2(*args):
@@ -206,11 +216,17 @@ def build_kernel_function(name, arguments, return_type, body):
         """
 
 
+
+
+__MEMORY_POOL__ = None
+
+
 def build_kernel_main(name, arguments, body):
     global __code__
-    signature = ', '.join(_get_annotation_as_cltype(annotation)+" "+ arg_name for arg_name, annotation in arguments.items())
+    signature = ', '.join([_get_annotation_as_cltype(annotation)+" "+ arg_name for arg_name, annotation in arguments.items()]+['__global char* memory_pool_arg'])
     __code__ += f"""
     __kernel void {name}({signature}) {{
+    memory_pool = memory_pool_arg;
     int thread_id = get_global_id(0);
     {body}
     }}
@@ -242,7 +258,7 @@ def build_kernel_main(name, arguments, body):
                 if program is None:
                     program = cl.Program(__ctx__, __code__).build()
                 kernel = program.__getattr__(name)
-                kernel(__queue__, (num_threads,), None, *[resolve_arg(a, v) for a, (k, v) in zip(args, arguments.items())])
+                kernel(__queue__, (num_threads,), None, *([resolve_arg(a, v) for a, (k, v) in zip(args, arguments.items())] + [__MEMORY_POOL__.get_buffer().data]))
 
             return dispatch_call
 
@@ -267,6 +283,13 @@ def kernel_struct(cls):
     __code__ += cltype
     cltools.get_or_register_dtype(cls.__name__, dtype)
     return dtype
+
+
+@kernel_struct
+class Texture2D:
+    width: np.int32
+    height: np.int32
+    offset: np.int32
 
 
 def create_buffer(count: int, dtype: np.dtype):
@@ -367,6 +390,7 @@ def mapped(b: typing.Union[cla.Array, Buffer, Image]):
             return self.mapped[0]
         def __exit__(self, exc_type, exc_val, exc_tb):
             self.mapped[0].base.release()
+
     return _ctx()
 
 
@@ -500,3 +524,31 @@ def perspective(fov = 3.141593 / 4, aspect_ratio = 1.0, znear = .01, zfar = 100.
     )
 
 
+class MemoryPool:
+    def __init__(self, max_size=1024*1024*1024): # 1GB by default
+        self.max_size = max_size
+        self.buffer = create_buffer(max_size, np.uint8)
+        self.malloc_ptr = 0
+
+    def allocate_texture(self, width, height):
+        memory_to_allocate = width * height * 4 * 4
+        if self.malloc_ptr + memory_to_allocate >= self.max_size:
+            raise Exception("Memory out!")
+        memory = self.buffer[self.malloc_ptr:self.malloc_ptr + memory_to_allocate]
+        texture_descriptor = create_struct(Texture2D)
+        with mapped(texture_descriptor) as map:
+            map['width'] = width
+            map['height'] = height
+            map['offset'] = self.malloc_ptr
+        self.malloc_ptr += memory_to_allocate
+        return memory.view(float4).reshape(height, width), texture_descriptor
+
+    def get_buffer(self):
+        return self.buffer
+
+
+__MEMORY_POOL__ = MemoryPool()
+
+
+def create_texture2D(width: int, height: int):
+    return __MEMORY_POOL__.allocate_texture(width, height)
