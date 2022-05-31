@@ -63,6 +63,7 @@ class Presenter:
     def present(self):
         if self.offline:
             return
+
         # lock texture
         pixel_ptr = ctypes.c_void_p()
         pitch = ctypes.c_int()

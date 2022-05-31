@@ -9,6 +9,7 @@ import typing
 
 __ctx__ = cl.create_some_context()
 __queue__ = cl.CommandQueue(__ctx__)
+
 __code__ = """
 #define float4x4 float16
 
@@ -61,6 +62,14 @@ float4 mul(float4 v, float4x4 m) {
     return (float4)(dot(v, m.even.even), dot(v, m.odd.even), dot(v, m.even.odd), dot(v, m.odd.odd));    
 }
 
+
+__global char* memory_pool;
+
+
+#define wrap_coord(c) (fmod(fmod(c, 1.0f) + 1.0f, 1.0f))
+
+#define sample2D(texture, c) (((float4*)(memory_pool + (texture).offset + 16*((int)(wrap_coord((c).y) * (texture).height) * (texture).width + (int)(wrap_coord((c).x) * (texture).width))))[0]) 
+
 """
 
 float2 = cltools.get_or_register_dtype('float2')
@@ -87,6 +96,25 @@ w_image1d_t = 'write_only image1d_t'
 w_image2d_t = 'write_only image2d_t'
 w_image3d_t = 'write_only image3d_t'
 
+Texture2D = 'Texture2D'
+
+
+def make_int2(*args):
+    if len(args) == 1 and isinstance(args[0], np.ndarray):
+        return args[0].ravel().view(int2).item()
+    return np.array(args, dtype=int2)
+
+
+def make_int3(*args):
+    if len(args) == 1 and isinstance(args[0], np.ndarray):
+        args = args[0].ravel().view(np.int32)
+    return np.array(tuple([*args, 0]), dtype=int3)
+
+
+def make_int4(*args):
+    if len(args) == 1 and isinstance(args[0], np.ndarray):
+        return args[0].ravel().view(int4).item()
+    return np.array(args, dtype=int4)
 
 
 def make_float2(*args):
@@ -142,7 +170,7 @@ __OBJECT_TYPE_TO_CLTYPE__ = {
 }
 
 
-def _get_annotation_as_cltype(annotation, assert_no_pointer=False):
+def _get_annotation_as_cltype(annotation):
     if annotation is None:
         return "void"
     is_pointer = False
@@ -152,8 +180,6 @@ def _get_annotation_as_cltype(annotation, assert_no_pointer=False):
         annotation = annotation[0]
     if isinstance(annotation, str):  # object types
         return annotation
-    if assert_no_pointer:
-        assert not is_pointer, "Can not use pointers in kernel auxiliary functions"
     return ("__global " if is_pointer else "")+cltools.dtype_to_ctype(annotation) +("*" if is_pointer else "")
 
 
@@ -163,34 +189,56 @@ def kernel_function(f):
     global __code__
 
     __code__ += f"""
-{_get_annotation_as_cltype(return_annotation, assert_no_pointer=True)} {name}({', '.join(_get_annotation_as_cltype(v.annotation, assert_no_pointer=True) + " " + v.name for k, v in s)}) {{
+{_get_annotation_as_cltype(return_annotation)} {name}({', '.join(_get_annotation_as_cltype(v.annotation) + " " + v.name for k, v in s)}) {{
 {inspect.getdoc(f)}
 }}
 """
-    def wrapper(*args):
-        raise Exception("Can not call to this function from host.")
-    return wrapper
+    class wrapper:
+        def __init__(self):
+            self.name = name
+            self.signature = s
+            self.return_annotation = return_annotation
+        def __call__(self, *args):
+            raise Exception("Can not call to this function from host.")
+    return wrapper()
 
 
-def kernel_main(f):
-    s, return_annotation = _get_signature(f)
-    assert return_annotation == inspect.Signature.empty, "Kernel main function must return void"
-    name = f.__name__
+def build_kernel_function(name, arguments, return_type, body):
     global __code__
+    signature = ', '.join(_get_annotation_as_cltype(annotation)+" "+ arg_name for arg_name, annotation in arguments.items())
+    return_type = _get_annotation_as_cltype(return_type)
     __code__ += f"""
-__kernel void {name}({', '.join(_get_annotation_as_cltype(v.annotation)+" "+v.name for k,v in s)}) {{
-int thread_id = get_global_id(0);
-{inspect.getdoc(f)}
-}}
-    """
-    # print(__code__)
+    {return_type} {name}({signature}) {{
+    {body}
+    }}
+        """
+
+
+
+
+__MEMORY_POOL__ = None
+
+
+def build_kernel_main(name, arguments, body):
+    global __code__
+    signature = ', '.join([_get_annotation_as_cltype(annotation)+" "+ arg_name for arg_name, annotation in arguments.items()]+['__global char* memory_pool_arg'])
+    __code__ += f"""
+    __kernel void {name}({signature}) {{
+    memory_pool = memory_pool_arg;
+    int thread_id = get_global_id(0);
+    {body}
+    }}
+        """
     program = None
+
     class Dispatcher:
         def __init__(self):
             pass
+
         def __getitem__(self, num_threads):
             if isinstance(num_threads, list) or isinstance(num_threads, tuple):
                 num_threads = math.prod(num_threads)
+
             def resolve_arg(a, annotation):
                 if isinstance(a, cla.Array):
                     if isinstance(annotation, list):
@@ -198,16 +246,30 @@ int thread_id = get_global_id(0);
                     else:
                         a = a.get()  # pass the numpy array as a value transfer.
                 if isinstance(a, int):
-                    a = np.int32(a)
+                    a = np.int32(a)  # treat python numeric values in the 32 bit form
+                if isinstance(a, float):
+                    a = np.float32(a)  # treat python numeric values in the 32 bit form
                 return a
+
             def dispatch_call(*args):
                 nonlocal program
                 if program is None:
                     program = cl.Program(__ctx__, __code__).build()
                 kernel = program.__getattr__(name)
-                kernel(__queue__, (num_threads,), None, *[resolve_arg(a, v.annotation) for a, (k,v) in zip(args,s)])
+                kernel(__queue__, (num_threads,), None, *([resolve_arg(a, v) for a, (k, v) in zip(args, arguments.items())] + [__MEMORY_POOL__.get_buffer().data]))
+
             return dispatch_call
+
     return Dispatcher()
+
+
+def kernel_main(f):
+    s, return_annotation = _get_signature(f)
+    assert return_annotation == inspect.Signature.empty, "Kernel main function must return void"
+    name = f.__name__
+    arguments = { v.name: v.annotation for _,v in s }
+    body = inspect.getdoc(f)
+    return build_kernel_main(name, arguments, body)
 
 
 def kernel_struct(cls):
@@ -219,6 +281,13 @@ def kernel_struct(cls):
     __code__ += cltype
     cltools.get_or_register_dtype(cls.__name__, dtype)
     return dtype
+
+
+@kernel_struct
+class Texture2D:
+    width: np.int32
+    height: np.int32
+    offset: np.int32
 
 
 def create_buffer(count: int, dtype: np.dtype):
@@ -279,10 +348,14 @@ def create_image2d(width: int, height: int, dtype: np.dtype):
 
 
 def clear(b, value = np.float32(0)):
+    if isinstance(value, float):
+        value = np.float32(value)
     if not isinstance(value, np.ndarray):
         value = np.array(value)
+    if isinstance(b, cla.Array):
+        b = b.base_data
     if isinstance(b, Buffer):
-        cl.enqueue_fill_buffer(__queue__, b, value, 0, value.nbytes)
+        cl.enqueue_fill_buffer(__queue__, b, value, 0, b.size)
     else:
         if math.prod(value.shape) <= 1:
             value = np.array([value]*4)
@@ -315,6 +388,7 @@ def mapped(b: typing.Union[cla.Array, Buffer, Image]):
             return self.mapped[0]
         def __exit__(self, exc_type, exc_val, exc_tb):
             self.mapped[0].base.release()
+
     return _ctx()
 
 
@@ -448,3 +522,31 @@ def perspective(fov = 3.141593 / 4, aspect_ratio = 1.0, znear = .01, zfar = 100.
     )
 
 
+class MemoryPool:
+    def __init__(self, max_size=1024*1024*1024): # 1GB by default
+        self.max_size = max_size
+        self.buffer = create_buffer(max_size, np.uint8)
+        self.malloc_ptr = 0
+
+    def allocate_texture(self, width, height):
+        memory_to_allocate = width * height * 4 * 4
+        if self.malloc_ptr + memory_to_allocate >= self.max_size:
+            raise Exception("Memory out!")
+        memory = self.buffer[self.malloc_ptr:self.malloc_ptr + memory_to_allocate]
+        texture_descriptor = create_struct(Texture2D)
+        with mapped(texture_descriptor) as map:
+            map['width'] = width
+            map['height'] = height
+            map['offset'] = self.malloc_ptr
+        self.malloc_ptr += memory_to_allocate
+        return memory.view(float4).reshape(height, width), texture_descriptor
+
+    def get_buffer(self):
+        return self.buffer
+
+
+__MEMORY_POOL__ = MemoryPool()
+
+
+def create_texture2D(width: int, height: int):
+    return __MEMORY_POOL__.allocate_texture(width, height)

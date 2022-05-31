@@ -4,10 +4,12 @@ from ._core import kernel_main, kernel_struct, create_buffer_from, create_buffer
     make_float2, make_float3, make_float4, make_float4x4, translate, identity, scale, rotate, matmul, to_array, clear, \
     perspective, look_at, normalize, dot
 
-from ._core import float2, float3, float4, int2, int3, int4, uint2, uint3, uint4, float4x4
+from ._core import float2, float3, float4, int2, int3, int4, uint2, uint3, uint4, float4x4, Texture2D, create_texture2D
 
 from ._modeling import Mesh, WeldMode, SubdivisionMode, MeshVertex, manifold
 
 from ._loaders import load_obj
 
 from ._presentation import create_presenter, Presenter, Event
+
+from ._raster import Raster

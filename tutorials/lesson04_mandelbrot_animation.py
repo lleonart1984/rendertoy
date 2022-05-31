@@ -68,9 +68,7 @@ while True:
 
     with ren.mapped(mandelbrot_info) as map:
         map["N"] = 100
-        map["C"] = np.array(
-            (0.09 + np.cos(t * 0.7) * 0.01, 0.61 + np.sin(t) * 0.01), dtype=ren.float2
-        )
+        map["C"] = ren.make_float2(0.09 + np.cos(t * 0.7) * 0.01, 0.61 + np.sin(t) * 0.01)
 
     compute_mandelbrot[presenter.get_render_target().shape](
         presenter.get_render_target(), mandelbrot_info
