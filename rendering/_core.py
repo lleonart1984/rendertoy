@@ -10,6 +10,31 @@ import typing
 __ctx__ = cl.create_some_context()
 __queue__ = cl.CommandQueue(__ctx__)
 
+def create_buffer(count: int, dtype: np.dtype):
+    return cla.zeros(__queue__, (count,), dtype)
+
+__MAX_SIZE__ = 1024*1024*1024
+__MEMORY_POOL_BUFFER__ = create_buffer(__MAX_SIZE__, np.uint8)
+
+
+def get_buffer_ptr():
+    # Create kernel to retrieve buffer ptr
+    program = cl.Program(__ctx__,
+                         """
+    __kernel void get_ptr(__global char* ptr, __global unsigned long* ptr_store) {
+        ptr_store[0] = (unsigned long)ptr;
+    }
+                         """).build()
+    kernel = program.get_ptr
+    ptr_store = cla.to_device(__queue__, np.zeros((1,), np.int64))
+    kernel(__queue__, (1,), None, __MEMORY_POOL_BUFFER__.data, ptr_store.data)
+    return int(ptr_store.map_to_host())
+
+
+test1 = get_buffer_ptr()
+test2 = get_buffer_ptr()
+
+
 __code__ = """
 #define float4x4 float16
 
@@ -62,13 +87,13 @@ float4 mul(float4 v, float4x4 m) {
     return (float4)(dot(v, m.even.even), dot(v, m.odd.even), dot(v, m.even.odd), dot(v, m.odd.odd));    
 }
 
-
-__global char* memory_pool;
-
+"""+\
+f"__constant unsigned long memory_pool_ptr = {get_buffer_ptr()};"+\
+"""
 
 #define wrap_coord(c) (fmod(fmod(c, 1.0f) + 1.0f, 1.0f))
 
-#define sample2D(texture, c) (((float4*)(memory_pool + (texture).offset + 16*((int)(wrap_coord((c).y) * (texture).height) * (texture).width + (int)(wrap_coord((c).x) * (texture).width))))[0]) 
+#define sample2D(texture, c) (((float4*)(memory_pool_ptr + (texture).offset + 16*((int)(wrap_coord((c).y) * (texture).height) * (texture).width + (int)(wrap_coord((c).x) * (texture).width))))[0]) 
 
 """
 
@@ -221,10 +246,10 @@ __MEMORY_POOL__ = None
 
 def build_kernel_main(name, arguments, body):
     global __code__
-    signature = ', '.join([_get_annotation_as_cltype(annotation)+" "+ arg_name for arg_name, annotation in arguments.items()]+['__global char* memory_pool_arg'])
+    signature = ', '.join([_get_annotation_as_cltype(annotation)+" "+ arg_name for arg_name, annotation in arguments.items()] + ['__global char* memory_pool_arg'])
     __code__ += f"""
     __kernel void {name}({signature}) {{
-    memory_pool = memory_pool_arg;
+    //memory_pool_ptr = (long)memory_pool_arg;
     int thread_id = get_global_id(0);
     {body}
     }}
@@ -290,8 +315,7 @@ class Texture2D:
     offset: np.int32
 
 
-def create_buffer(count: int, dtype: np.dtype):
-    return cla.zeros(__queue__, (count,), dtype)
+
 
 
 def create_buffer_from(ary: np.ndarray):
@@ -523,9 +547,9 @@ def perspective(fov = 3.141593 / 4, aspect_ratio = 1.0, znear = .01, zfar = 100.
 
 
 class MemoryPool:
-    def __init__(self, max_size=1024*1024*1024): # 1GB by default
-        self.max_size = max_size
-        self.buffer = create_buffer(max_size, np.uint8)
+    def __init__(self): # 1GB by default
+        self.max_size = __MAX_SIZE__
+        self.buffer = __MEMORY_POOL_BUFFER__
         self.malloc_ptr = 0
 
     def allocate_texture(self, width, height):
