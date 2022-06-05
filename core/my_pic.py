@@ -1,68 +1,138 @@
+from tutorials.lesson_common import ROOT_DIR
+
 import rendering as ren
 import time
 import numpy as np
 
 
-"""
-In this lesson, a point cloud is rendered after transformation
-"""
+# Create a manifold mesh to represent the surface.
+egg_mesh = ren.manifold(100, 100)
+egg = egg_mesh.vertices
 
+@ren.kernel_main
+def make_egg(vertices: [ren.MeshVertex], a: np.float32, b: np.float32):
+    """
+    float2 uv = vertices[thread_id].C;
 
-# Define a struct to define parameters in the algorithm.
-@ren.kernel_struct
-class Vertex:
-    P: ren.float3   # Position
-    C: ren.float3   # Color
+    float u = uv.x;
+    float v = uv.y;
 
-R = 0.7
-a, c = 0.45, 0.6
-egg = []
-for i in range(-100, 100):
-    for j in range(-100, 100):
-        for k in range(-100, 100):
-            x = i / 100
-            y = j / 100
-            z = k / 100
+    float3 p = (float3)(0,0,0);
 
-            if (x * x + z * z) / (a * a) + (y * y) / (c * c) <= R * R:
-                egg.append(x)
-                egg.append(y)
-                egg.append(z)
-                egg.append(0.0)
+    if(u <= b) p = (float3)(u, -sqrt(a * a - u * u * a * a / (b * b)), 0);
+    else p = p = (float3)(b - u, sqrt(a * a - (b - u) * (b - u) * a * a / (b * b)), 0);
 
-foot = []
-for i in range(100):
-    for j in range(100):
-        for k in range(100):
-            x = i / 100
-            y = j / 100
-            z = k / 100
+    // Evaluate rotation
+    float4x4 rot = rotation(v * 3.141593 * 2, (float3)(0,1,0));
+    float4 h = (float4)(p.x, p.y, p.z, 1.0);
+    h = mul(h, rot);
 
-            if z <= 0.03 and 0.07 * 0.07 <= x * x + y * y <= 0.1 * 0.1:
-                foot.append(x)
-                foot.append(y)
-                foot.append(z)
-                foot.append(0)
+    float3 position = h.xyz;
 
-vertexes = egg
+    vertices[thread_id].P = position; // update position of the mesh with computed parametric transformation
+    """
 
-# Create vertex buffer
-num_vertex = (len(vertexes)) // 4
-vertex_buffer = ren.create_buffer(num_vertex, Vertex)
+conic1_mesh = ren.manifold(100, 100)
+conic1 = conic1_mesh.vertices
 
-col = []
-for i in range(num_vertex):
-    col.append(255)
-    col.append(0)
-    col.append(0)
-    col.append(0)
+@ren.kernel_main
+def make_conic1(vertices: [ren.MeshVertex]):
+    """
+    float2 uv = vertices[thread_id].C;
 
-# fill vertices with a sphere.
-with ren.mapped(vertex_buffer) as map:
-    # the number of float numbers in positions and colors are not 3 floats per vertex but 4 because of the padding imposse to float3
-    map['P'] = np.array(vertexes).astype(np.float32).view(ren.float3)
-    map['C'] = np.random.uniform(0, 1, size=(num_vertex*4,)).astype(np.float32).view(ren.float3)
-    # map['C'] = np.array(col).astype(np.float32).view(ren.float3)
+    float u = uv.x;
+    float v = uv.y;
+
+    float3 p = (float3)(0,0,0);
+
+    float a = 0.2, b = 0.6;
+    if(u <= a) p = (float3)(u, 0.2, 0);
+    else if(u <= b) p = (float3)(u, -0.5 * u + 0.3, 0);
+    else p = (float3)(0.6 - (u - 0.6) * 1.5, 0, 0);
+
+    // Evaluate rotation
+    float4x4 rot = rotation(v * 3.141593 * 2, (float3)(0,1,0));
+    float4 h = (float4)(p.x, p.y, p.z, 1.0);
+    h = mul(h, rot);
+
+    float3 position = h.xyz;
+
+    vertices[thread_id].P = position; // update position of the mesh with computed parametric transformation
+    """
+
+conic2_mesh = ren.manifold(100, 100)
+conic2 = conic2_mesh.vertices
+
+@ren.kernel_main
+def make_conic2(vertices: [ren.MeshVertex]):
+    """
+    float2 uv = vertices[thread_id].C;
+
+    float u = uv.x;
+    float v = uv.y;
+
+    float3 p = (float3)(0,0,0);
+
+    float a = 0.2, b = 0.6, c = 0.7;
+    if(u <= a) p = (float3)(u, 0.2, 0);
+    else if(u <= b)
+    {
+        float x = 0.2 + (u - a) * 0.25;
+        float y = 4 * x - 0.6;
+        p = (float3)(x, y, 0);
+    }
+    else if(u <= c) p = (float3)(0.3, 0.6 + (u - b), 0);
+    else p = (float3)((1.0 - u), 0.7, 0);
+
+    // Evaluate rotation
+    float4x4 rot = rotation(v * 3.141593 * 2, (float3)(0,1,0));
+    float4 h = (float4)(p.x, p.y, p.z, 1.0);
+    h = mul(h, rot);
+
+    float3 position = h.xyz;
+
+    vertices[thread_id].P = position; // update position of the mesh with computed parametric transformation
+    """
+
+plate_mesh = ren.manifold(100, 100)
+plate = plate_mesh.vertices
+
+@ren.kernel_main
+def make_plate(vertices: [ren.MeshVertex]):
+    """
+    float2 uv = vertices[thread_id].C;
+
+    float u = uv.x;
+    float v = uv.y;
+
+    float3 p = (float3)(0,0,0);
+
+    float a = 0.3, b = 0.65, c = 0.7;
+    if(u <= a) p = (float3)(u, 0.7, 0);
+    else if(u <= b)
+    {
+        float x = 0.3 + (u - a) * 12.0 / 7.0;
+        float y = x * x * 5 / 18.0 + 27.0 / 40.0;
+        p = (float3)(x, y, 0);
+    }
+    else if(u <= c) p = (float3)(0.9 - (u - b) * 2.0, 0.9, 0);
+    else
+    {
+        float x = 0.8 - (u - c) * 8.0 / 3.0;
+        float y = x * x * 5 / 18.0 + 27.0 / 40.0 + 0.05;
+        p = (float3)(x, y, 0);
+    }
+
+    // Evaluate rotation
+    float4x4 rot = rotation(v * 3.141593 * 2, (float3)(0,1,0));
+    float4 h = (float4)(p.x, p.y, p.z, 1.0);
+    h = mul(h, rot);
+
+    float3 position = h.xyz;
+
+    vertices[thread_id].P = position; // update position of the mesh with computed parametric transformation
+    """
+
 
 @ren.kernel_struct
 class Transforms:
@@ -76,11 +146,13 @@ transform_info = ren.create_struct(Transforms)
 
 
 @ren.kernel_main
-def transform_and_draw(im: ren.w_image2d_t, vertices: [Vertex], info: Transforms):
+def transform_and_draw(
+    im: ren.w_image2d_t, vertices: [ren.MeshVertex], info: Transforms
+):
     """
     int2 dim = get_image_dim(im);
     float3 P = vertices[thread_id].P;
-    float3 C = vertices[thread_id].C;
+    float3 C = (float3)(1.0, 1.0, 0.3);
 
     float4 H = (float4)(P.x, P.y, P.z, 1.0); // extend 3D position to a homogeneous coordinates
 
@@ -101,7 +173,7 @@ def transform_and_draw(im: ren.w_image2d_t, vertices: [Vertex], info: Transforms
 
 
 # creates a window with a 512x512 image as render target.
-presenter = ren.create_presenter(512, 512)
+presenter = ren.create_presenter(640, 480)
 
 # get the start time to compute the time for the animation
 start_time = time.perf_counter()
@@ -116,14 +188,28 @@ while True:
     # t is the elapsed time
     t = time.perf_counter() - start_time
 
+    #make_egg[egg.shape](egg, np.float32(0.65), np.float32(0.5))
+    make_conic1[conic1.shape](conic1)
+    make_conic2[conic2.shape](conic2)
+    make_plate[plate.shape](plate)
+
     # update the transformation matrices from host every frame
     with ren.mapped(transform_info) as map:
-        map['World'] = ren.rotate(t, np.array([0, 1, 0]))
-        map['View'] = ren.translate(np.cos(t*4)*0.2, np.sin(t)*0.1, 0.2)
-        map['Proj'] = ren.identity()
+        map["World"] = ren.rotate(t, ren.make_float3(1, 0, 0))
+        map["View"] = ren.look_at(
+            ren.make_float3(0, 1, 5),
+            ren.make_float3(0, 0, 0),
+            ren.make_float3(0, 1, 0),
+        )
+        map["Proj"] = ren.perspective(aspect_ratio=presenter.width / presenter.height)
 
     ren.clear(presenter.get_render_target())
 
-    transform_and_draw[vertex_buffer.shape](presenter.get_render_target(), vertex_buffer, transform_info)
+    # transform_and_draw[egg.shape](presenter.get_render_target(), egg, transform_info)
+    transform_and_draw[conic1.shape](presenter.get_render_target(), conic1, transform_info)
+    transform_and_draw[conic2.shape](presenter.get_render_target(), conic2, transform_info)
+    transform_and_draw[plate.shape](presenter.get_render_target(), plate, transform_info)
 
     presenter.present()
+
+print("[INFO] Terminated...")
