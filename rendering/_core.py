@@ -256,7 +256,7 @@ def build_kernel_main(name, arguments, body):
         """
     program = None
 
-    max_group_size = __ctx__.devices[0].get_info(cl.device_info.PREFERRED_WORK_GROUP_SIZE_MULTIPLE)
+    max_group_size = 32 #__ctx__.devices[0].get_info(cl.device_info.PREFERRED_WORK_GROUP_SIZE_MULTIPLE)
 
     class Dispatcher:
         def __init__(self):
