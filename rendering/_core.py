@@ -246,11 +246,11 @@ __MEMORY_POOL__ = None
 
 def build_kernel_main(name, arguments, body):
     global __code__
-    signature = ', '.join([_get_annotation_as_cltype(annotation)+" "+ arg_name for arg_name, annotation in arguments.items()] + ['__global char* memory_pool_arg'])
+    signature = ', '.join([_get_annotation_as_cltype(annotation)+" "+ arg_name for arg_name, annotation in arguments.items()] + ['int number_of_threads'])
     __code__ += f"""
     __kernel void {name}({signature}) {{
-    //memory_pool_ptr = (long)memory_pool_arg;
     int thread_id = get_global_id(0);
+    if (thread_id >= number_of_threads) return; // automatically skip threads outside range
     {body}
     }}
         """
@@ -281,7 +281,7 @@ def build_kernel_main(name, arguments, body):
                 if program is None:
                     program = cl.Program(__ctx__, __code__).build()
                 kernel = program.__getattr__(name)
-                kernel(__queue__, (num_threads,), None, *([resolve_arg(a, v) for a, (k, v) in zip(args, arguments.items())] + [__MEMORY_POOL__.get_buffer().data]))
+                kernel(__queue__, ((num_threads // 512 + 1)*512,), (512,), *([resolve_arg(a, v) for a, (k, v) in zip(args, arguments.items())] + [np.int32(num_threads)]))
 
             return dispatch_call
 
