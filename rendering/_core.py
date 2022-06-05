@@ -256,6 +256,8 @@ def build_kernel_main(name, arguments, body):
         """
     program = None
 
+    max_group_size = __ctx__.devices[0].get_info(cl.device_info.PREFERRED_WORK_GROUP_SIZE_MULTIPLE)
+
     class Dispatcher:
         def __init__(self):
             pass
@@ -281,7 +283,7 @@ def build_kernel_main(name, arguments, body):
                 if program is None:
                     program = cl.Program(__ctx__, __code__).build()
                 kernel = program.__getattr__(name)
-                kernel(__queue__, ((num_threads // 32 + 1)*32,), (32,), *([resolve_arg(a, v) for a, (k, v) in zip(args, arguments.items())] + [np.int32(num_threads)]))
+                kernel(__queue__, ((num_threads // max_group_size + 1)*max_group_size,), (max_group_size,), *([resolve_arg(a, v) for a, (k, v) in zip(args, arguments.items())] + [np.int32(num_threads)]))
 
             return dispatch_call
 
