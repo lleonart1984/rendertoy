@@ -63,7 +63,7 @@ def cartesian_product(*arrays):
 
 def manifold(slices, stacks) -> 'Mesh':
     vertex_count = (slices + 1)*(stacks + 1)
-    index_count = slices * stacks * 6
+    index_count = slices * (stacks + 1) * 6
     vertices = create_buffer(vertex_count, MeshVertex)
     vertex_size = MeshVertex.itemsize // 4
     indices = create_buffer(index_count, np.int32)
@@ -77,13 +77,13 @@ def manifold(slices, stacks) -> 'Mesh':
         map[:, 8:10] = pos[:, 0:2]
     with mapped(indices) as map:
         ids = np.arange(0, slices, 1)
-        for s in range(stacks):
-            c00 = ids + s
-            c01 = ids + 1
-            c10 = ids + (slices + 1)
-            c11 = ids + (1 + slices + 1)
-            map[s*slices*6:s*slices*6 + slices*3] = np.concatenate([c00, c01, c11], axis=-1).ravel()
-            map[s*slices*6 + slices*3:(s+1)*slices*6] = np.concatenate([c00, c11, c10], axis=-1).ravel()
+        for s in range(stacks + 1):
+            c00 = ids + s * slices % vertex_count
+            c01 = ids + s * slices + 1 % vertex_count
+            c10 = ids + (s + 1) * slices % vertex_count
+            c11 = ids + (s + 1) * slices + 1 % vertex_count
+            map[s*slices*6:s*slices*6 + slices*3] = np.stack([c00, c01, c11], axis=-1).ravel()
+            map[s*slices*6 + slices*3:(s+1)*slices*6] = np.stack([c00, c11, c10], axis=-1).ravel()
     return Mesh (vertices, indices)
 
 

@@ -1,3 +1,5 @@
+import math
+
 from tutorials.lesson_common import ROOT_DIR
 
 import rendering as ren
@@ -6,11 +8,10 @@ import numpy as np
 
 
 from PIL import Image
-image_for_texture = np.array(Image.open(f"{ROOT_DIR}/models/marble2.jpg"))
+image_for_texture1 = np.array(Image.open(f"{ROOT_DIR}/models/marble1.jpg"))
+image_for_texture2 = np.array(Image.open(f"{ROOT_DIR}/models/marble2.jpg"))
+image_for_texture3 = np.array(Image.open(f"{ROOT_DIR}/models/marble3.jpg"))
 
-# Create a manifold mesh to represent the surface.
-egg_mesh = ren.manifold(100, 100)
-egg = egg_mesh.vertices
 
 @ren.kernel_main
 def make_egg(vertices: [ren.MeshVertex], a: np.float32, b: np.float32):
@@ -23,20 +24,20 @@ def make_egg(vertices: [ren.MeshVertex], a: np.float32, b: np.float32):
     float3 p = (float3)(0,0,0);
 
     if(u <= b) p = (float3)(u, -sqrt(a * a - u * u * a * a / (b * b)), 0);
-    else p = p = (float3)(b - u, sqrt(a * a - (b - u) * (b - u) * a * a / (b * b)), 0);
+    else p = p = (float3)(2 * b - u, sqrt(a * a - (2 * b - u) * (2 * b - u) * a * a / (b * b)), 0);
 
     // Evaluate rotation
     float4x4 rot = rotation(v * 3.141593 * 2, (float3)(0,1,0));
     float4 h = (float4)(p.x, p.y, p.z, 1.0);
     h = mul(h, rot);
 
-    float3 position = h.xyz;
+    float3 n = normalize((float3)(1, 2, 0));
+    float4 nh = (float4)(n, 1.0);
+    nh = mul(nh, rot);
 
-    vertices[thread_id].P = position; // update position of the mesh with computed parametric transformation
+    vertices[thread_id].N = nh.xyz;
+    vertices[thread_id].P = h.xyz; // update position of the mesh with computed parametric transformation
     """
-
-conic1_mesh = ren.manifold(image_for_texture.shape[1], image_for_texture.shape[0])
-conic1 = conic1_mesh.vertices
 
 @ren.kernel_main
 def make_conic1(vertices: [ren.MeshVertex]):
@@ -58,13 +59,14 @@ def make_conic1(vertices: [ren.MeshVertex]):
     float4 h = (float4)(p.x, p.y, p.z, 1.0);
     h = mul(h, rot);
 
-    float3 position = h.xyz;
+    float3 n = normalize((float3)(1, 2, 0));
+    float4 nh = (float4)(n, 1.0);
+    nh = mul(nh, rot);
 
-    vertices[thread_id].P = position; // update position of the mesh with computed parametric transformation
+    vertices[thread_id].N = nh.xyz;
+    vertices[thread_id].P = h.xyz; // update position of the mesh with computed parametric transformation
     """
 
-conic2_mesh = ren.manifold(image_for_texture.shape[1], image_for_texture.shape[0])
-conic2 = conic2_mesh.vertices
 
 @ren.kernel_main
 def make_conic2(vertices: [ren.MeshVertex]):
@@ -74,49 +76,31 @@ def make_conic2(vertices: [ren.MeshVertex]):
     float u = uv.x;
     float v = uv.y;
 
-    float3 n = (float3)(0, 0, 0);
     float3 p = (float3)(0,0,0);
 
     float a = 0.2, b = 0.6, c = 0.7;
-    if(u <= a)
-    {
-        p = (float3)(u, 0.2, 0);
-        n = (float3)(0, -1, 0);
-    }
+    if(u <= a) p = (float3)(u, 0.2, 0);
     else if(u <= b)
     {
         float x = 0.2 + (u - a) * 0.25;
         float y = 4 * x - 0.6;
         p = (float3)(x, y, 0);
-        n = (float3)(1, 0, 0);
     }
-    else if(u <= c)
-    {
-        p = (float3)(0.3, 0.6 + (u - b), 0);
-        n = (float3)(1, 0, 0);
-    }
-    else
-    {
-        p = (float3)((1.0 - u), 0.7, 0);
-        n = (float3)(0, 1, 0);
-    }
+    else if(u <= c) p = (float3)(0.3, 0.6 + (u - b), 0);
+    else p = (float3)((1.0 - u), 0.7, 0);
 
     // Evaluate rotation
     float4x4 rot = rotation(v * 3.141593 * 2, (float3)(0,1,0));
     float4 h = (float4)(p.x, p.y, p.z, 1.0);
     h = mul(h, rot);
 
+    float3 n = normalize((float3)(1, 2, 0));
     float4 nh = (float4)(n, 1.0);
-    //nh = mul(nh, rot);
-
-    float3 position = h.xyz;
+    nh = mul(nh, rot);
 
     vertices[thread_id].N = nh.xyz;
-    vertices[thread_id].P = position; // update position of the mesh with computed parametric transformation
+    vertices[thread_id].P = h.xyz; // update position of the mesh with computed parametric transformation
     """
-
-plate_mesh = ren.manifold(image_for_texture.shape[1], image_for_texture.shape[0])
-plate = plate_mesh.vertices
 
 @ren.kernel_main
 def make_plate(vertices: [ren.MeshVertex]):
@@ -126,33 +110,22 @@ def make_plate(vertices: [ren.MeshVertex]):
     float u = uv.x;
     float v = uv.y;
 
-    float3 n = (float3)(0, 0, 0);
     float3 p = (float3)(0,0,0);
 
     float a = 0.3, b = 0.65, c = 0.7;
-    if(u <= a)
-    {
-        p = (float3)(u, 0.7, 0);
-        n = (float3)(0, -1, 0);
-    }
+    if(u <= a) p = (float3)(u, 0.7, 0);
     else if(u <= b)
     {
         float x = 0.3 + (u - a) * 12.0 / 7.0;
         float y = x * x * 5 / 18.0 + 27.0 / 40.0;
         p = (float3)(x, y, 0);
-        n = (float3)(1, 0, 0);
     }
-    else if(u <= c)
-    {
-        p = (float3)(0.9 - (u - b) * 2.0, 0.9, 0);
-        n = (float3)(1, 0, 0);
-    }
+    else if(u <= c) p = (float3)(0.9 - (u - b) * 2.0, 0.9, 0);
     else
     {
         float x = 0.8 - (u - c) * 8.0 / 3.0;
         float y = x * x * 5 / 18.0 + 27.0 / 40.0 + 0.05;
         p = (float3)(x, y, 0);
-        n = (float3)(0, 1, 0);
     }
 
     // Evaluate rotation
@@ -160,27 +133,56 @@ def make_plate(vertices: [ren.MeshVertex]):
     float4 h = (float4)(p.x, p.y, p.z, 1.0);
     h = mul(h, rot);
 
+    float3 n = normalize((float3)(1, 2, 0));
     float4 nh = (float4)(n, 1.0);
     nh = mul(nh, rot);
 
-    float3 position = h.xyz;
-
-    vertices[thread_id].N = n.xyz;
-    vertices[thread_id].P = position; // update position of the mesh with computed parametric transformation
+    vertices[thread_id].N = nh.xyz;
+    vertices[thread_id].P = h.xyz; // update position of the mesh with computed parametric transformation
     """
 
-#make_egg[egg.shape](egg, np.float32(0.65), np.float32(0.5))
-# make_conic1[conic1.shape](conic1)
+egg1_mesh = ren.manifold(200, 200)
+egg1 = egg1_mesh.vertices
+make_egg[egg1.shape](egg1, np.float32(0.65), np.float32(0.5))
+
+conic1_mesh = ren.manifold(300, 300)
+conic1 = conic1_mesh.vertices
+make_conic1[conic1.shape](conic1)
+
+conic2_mesh = ren.manifold(300, 300)
+conic2 = conic2_mesh.vertices
 make_conic2[conic2.shape](conic2)
-# make_plate[plate.shape](plate)
 
+plate_mesh = ren.manifold(300, 300)
+plate = plate_mesh.vertices
+make_plate[plate.shape](plate)
 
-vertex_buffer, index_buffer = conic2, None
-texture_memory, texture_descriptor = ren.create_texture2D(image_for_texture.shape[1], image_for_texture.shape[0])
-with ren.mapped(texture_memory) as map:
+texture_memory1, texture_descriptor1 = ren.create_texture2D(image_for_texture1.shape[1], image_for_texture1.shape[0])
+with ren.mapped(texture_memory1) as map:
     # next change the numpy array from shape (h, w) of float4 to (h, w, 4) of floats
-    map = map.view(np.float32).ravel().reshape(image_for_texture.shape[0], image_for_texture.shape[1], 4)
-    map[:,:,0:3] = image_for_texture/255.0   # update rgb from image
+    map = map.view(np.float32).ravel().reshape(image_for_texture1.shape[0], image_for_texture1.shape[1], 4)
+    map[:,:,0:3] = image_for_texture1 / 255.0   # update rgb from image
+    map[:,:,3] = 1.0    # set alphas = 1.0
+
+texture_memory2, texture_descriptor2 = ren.create_texture2D(image_for_texture2.shape[1], image_for_texture2.shape[0])
+with ren.mapped(texture_memory2) as map:
+    # next change the numpy array from shape (h, w) of float4 to (h, w, 4) of floats
+    map = map.view(np.float32).ravel().reshape(image_for_texture2.shape[0], image_for_texture2.shape[1], 4)
+    map[:,:,0:3] = image_for_texture2 / 255.0   # update rgb from image
+    map[:,:,3] = 1.0    # set alphas = 1.0
+
+texture_memory3, texture_descriptor3 = ren.create_texture2D(image_for_texture3.shape[1], image_for_texture3.shape[0])
+with ren.mapped(texture_memory3) as map:
+    # next change the numpy array from shape (h, w) of float4 to (h, w, 4) of floats
+    map = map.view(np.float32).ravel().reshape(image_for_texture3.shape[0], image_for_texture3.shape[1], 4)
+    map[:,:,0:3] = image_for_texture3 / 255.0   # update rgb from image
+    map[:,:,3] = 1.0    # set alphas = 1.0
+
+texture_memory4, texture_descriptor4 = ren.create_texture2D(image_for_texture3.shape[1], image_for_texture3.shape[0])
+with ren.mapped(texture_memory4) as map:
+    # next change the numpy array from shape (h, w) of float4 to (h, w, 4) of floats
+    map = map.view(np.float32).ravel().reshape(image_for_texture3.shape[0], image_for_texture3.shape[1], 4)
+    map[:,:,0:3] = image_for_texture3 / 255.0   # update rgb from image
     map[:,:,3] = 1.0    # set alphas = 1.0
 
 @ren.kernel_struct
@@ -259,23 +261,47 @@ while True:
 
     with ren.mapped(vertex_shader_globals) as map:
         map["World"] = ren.matmul(
-            ren.scale(1.0), ren.rotate(t, ren.make_float3(0, 1, 0))
+            ren.scale(1/3), ren.rotate(t, ren.make_float3(0, 1, 0))
         )
         map["View"] = ren.look_at(
-            ren.make_float3(0, 0.8, 1.0),
-            ren.make_float3(0, 0.5, 0),
+            ren.make_float3(0, 0.5, 1.0),
+            ren.make_float3(0, 0.2, 0),
             ren.make_float3(0, 1, 0),
         )
         map["Proj"] = ren.perspective(aspect_ratio=presenter.width / presenter.height)
 
-    with ren.mapped(fragment_shader_globals) as map:
-        map["DiffuseMap"] = texture_descriptor.get()
-
     ren.clear(raster.get_render_target())
     ren.clear(raster.get_depth_buffer(), 1.0)
+
+    '''
+    with ren.mapped(fragment_shader_globals) as map:
+        map["DiffuseMap"] = texture_descriptor1.get()
+    #raster.draw_points(conic1)
+    raster.draw_triangles(conic1, conic1_mesh.indices)
+
+    with ren.mapped(fragment_shader_globals) as map:
+        map["DiffuseMap"] = texture_descriptor2.get()
+    #raster.draw_points(conic2)
+    raster.draw_triangles(conic2, conic2_mesh.indices)
+
+    with ren.mapped(fragment_shader_globals) as map:
+        map["DiffuseMap"] = texture_descriptor3.get()
+    #raster.draw_points(plate)
+    raster.draw_triangles(plate, plate_mesh.indices)
+    '''
+
+
+    with ren.mapped(vertex_shader_globals) as map:
+        map["World"] = ren.matmul(ren.scale(1/3), ren.rotate(t, ren.make_float3(0, 1, 0)))
+
+    with ren.mapped(fragment_shader_globals) as map:
+        map["DiffuseMap"] = texture_descriptor4.get()
+    raster.draw_triangles(egg1, egg1_mesh.indices)
+
+
     # Using a rasterizer to draw the point instead of handling everything by ourself.
-    raster.draw_points(vertex_buffer)
-    raster.draw_triangles(vertex_buffer, index_buffer)
+
+    #raster.draw_triangles(vertex_buffer, index_buffer)
 
     presenter.present()
 

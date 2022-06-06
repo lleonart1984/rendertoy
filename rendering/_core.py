@@ -281,7 +281,7 @@ def build_kernel_main(name, arguments, body):
                 if program is None:
                     program = cl.Program(__ctx__, __code__).build()
                 kernel = program.__getattr__(name)
-                kernel(__queue__, ((num_threads // 512 + 1)*512,), (512,), *([resolve_arg(a, v) for a, (k, v) in zip(args, arguments.items())] + [np.int32(num_threads)]))
+                kernel(__queue__, ((num_threads // 32 + 1)*32,), (32,), *([resolve_arg(a, v) for a, (k, v) in zip(args, arguments.items())] + [np.int32(num_threads)]))
 
             return dispatch_call
 
