@@ -6,15 +6,33 @@ import rendering as ren
 import time
 import numpy as np
 
+@ren.kernel_struct
+class Transforms:
+    World: ren.float4x4
+    View: ren.float4x4
+    Proj: ren.float4x4
+
+@ren.kernel_struct
+class Materials:
+    DiffuseMap: ren.Texture2D
+
+@ren.kernel_struct
+class Vertex_Out:
+    proj: ren.float4
+    L: ren.float3
+    C: ren.float2
 
 from PIL import Image
 image_for_texture1 = np.array(Image.open(f"{ROOT_DIR}/models/marble1.jpg"))
 image_for_texture2 = np.array(Image.open(f"{ROOT_DIR}/models/marble2.jpg"))
 image_for_texture3 = np.array(Image.open(f"{ROOT_DIR}/models/marble3.jpg"))
+image_for_texture4 = np.array(Image.open(f"{ROOT_DIR}/models/marble4.jpg"))
+image_for_texture5 = np.array(Image.open(f"{ROOT_DIR}/models/marble5.jpg"))
+image_for_texture6 = np.array(Image.open(f"{ROOT_DIR}/models/marble6.jpg"))
 
 
 @ren.kernel_main
-def make_egg(vertices: [ren.MeshVertex], a: np.float32, b: np.float32):
+def make_egg(vertices: [ren.MeshVertex]):
     """
     float2 uv = vertices[thread_id].C;
 
@@ -22,6 +40,8 @@ def make_egg(vertices: [ren.MeshVertex], a: np.float32, b: np.float32):
     float v = uv.y;
 
     float3 p = (float3)(0,0,0);
+    float a = 0.65;
+    float b = 0.5;
 
     if(u <= b) p = (float3)(u, -sqrt(a * a - u * u * a * a / (b * b)), 0);
     else p = p = (float3)(2 * b - u, sqrt(a * a - (2 * b - u) * (2 * b - u) * a * a / (b * b)), 0);
@@ -141,9 +161,24 @@ def make_plate(vertices: [ren.MeshVertex]):
     vertices[thread_id].P = h.xyz; // update position of the mesh with computed parametric transformation
     """
 
-egg1_mesh = ren.manifold(200, 200)
-egg1 = egg1_mesh.vertices
-make_egg[egg1.shape](egg1, np.float32(0.65), np.float32(0.5))
+@ren.kernel_main
+def transform(vertices: [ren.MeshVertex], info: Transforms):
+    """
+    float3 P = vertices[thread_id].P;
+
+    float4 H = (float4)(P.x, P.y, P.z, 1.0); // extend 3D position to a homogeneous coordinates
+
+    H = mul(H, info.World); // transform with respect to world matrix
+    H = mul(H, info.View);  // transform with respect to view matrix
+    H = mul(H, info.Proj);  // transform with respect to projection matrix
+
+    H.xyz /= H.w; // De-homogenize
+    float4 n = (float4)(vertices[thread_id].N, 1.0);
+    n = mul(n, info.World);
+
+    vertices[thread_id].N = normalize(n.xyz);
+    vertices[thread_id].P = H.xyz;
+    """
 
 conic1_mesh = ren.manifold(300, 300)
 conic1 = conic1_mesh.vertices
@@ -178,32 +213,70 @@ with ren.mapped(texture_memory3) as map:
     map[:,:,0:3] = image_for_texture3 / 255.0   # update rgb from image
     map[:,:,3] = 1.0    # set alphas = 1.0
 
-texture_memory4, texture_descriptor4 = ren.create_texture2D(image_for_texture3.shape[1], image_for_texture3.shape[0])
+texture_memory4, texture_descriptor4 = ren.create_texture2D(image_for_texture4.shape[1], image_for_texture4.shape[0])
 with ren.mapped(texture_memory4) as map:
     # next change the numpy array from shape (h, w) of float4 to (h, w, 4) of floats
-    map = map.view(np.float32).ravel().reshape(image_for_texture3.shape[0], image_for_texture3.shape[1], 4)
-    map[:,:,0:3] = image_for_texture3 / 255.0   # update rgb from image
+    map = map.view(np.float32).ravel().reshape(image_for_texture4.shape[0], image_for_texture4.shape[1], 4)
+    map[:,:,0:3] = image_for_texture4 / 255.0   # update rgb from image
     map[:,:,3] = 1.0    # set alphas = 1.0
 
-@ren.kernel_struct
-class Transforms:
-    World: ren.float4x4
-    View: ren.float4x4
-    Proj: ren.float4x4
+texture_memory5, texture_descriptor5 = ren.create_texture2D(image_for_texture5.shape[1], image_for_texture5.shape[0])
+with ren.mapped(texture_memory5) as map:
+    # next change the numpy array from shape (h, w) of float4 to (h, w, 4) of floats
+    map = map.view(np.float32).ravel().reshape(image_for_texture5.shape[0], image_for_texture5.shape[1], 4)
+    map[:,:,0:3] = image_for_texture5 / 255.0   # update rgb from image
+    map[:,:,3] = 1.0    # set alphas = 1.0
 
-@ren.kernel_struct
-class Materials:
-    DiffuseMap: ren.Texture2D
-
-@ren.kernel_struct
-class Vertex_Out:
-    proj: ren.float4
-    L: ren.float3
-    C: ren.float2
-
+texture_memory6, texture_descriptor6 = ren.create_texture2D(image_for_texture6.shape[1], image_for_texture6.shape[0])
+with ren.mapped(texture_memory6) as map:
+    # next change the numpy array from shape (h, w) of float4 to (h, w, 4) of floats
+    map = map.view(np.float32).ravel().reshape(image_for_texture6.shape[0], image_for_texture6.shape[1], 4)
+    map[:,:,0:3] = image_for_texture6 / 255.0   # update rgb from image
+    map[:,:,3] = 1.0    # set alphas = 1.0
 
 vertex_shader_globals = ren.create_struct(Transforms)
 fragment_shader_globals = ren.create_struct(Materials)
+
+egg1_mesh = ren.manifold(200, 200)
+egg1 = egg1_mesh.vertices
+make_egg[egg1.shape](egg1)
+
+egg1_mesh = ren.manifold(200, 200)
+egg1 = egg1_mesh.vertices
+make_egg[egg1.shape](egg1)
+
+egg1_mesh = ren.manifold(200, 200)
+egg1 = egg1_mesh.vertices
+make_egg[egg1.shape](egg1)
+
+egg2_mesh = ren.manifold(200, 200)
+egg2 = egg2_mesh.vertices
+make_egg[egg2.shape](egg2)
+
+egg3_mesh = ren.manifold(200, 200)
+egg3 = egg3_mesh.vertices
+make_egg[egg3.shape](egg3)
+
+transformations = ren.to_array(ren.scale(3/5)) @ \
+            ren.to_array(ren.rotate(2 / 5 * math.pi, ren.make_float3(0, 0, 1))) @ \
+            ren.to_array(ren.translate(ren.make_float3(-0.4, 1.05, 0)))
+with ren.mapped(vertex_shader_globals) as map:
+    map['World'] = ren.make_float4x4(transformations)
+    map["View"] = ren.identity()
+    map['Proj'] = ren.identity()
+transform[egg1.shape](egg1, vertex_shader_globals)
+
+transformations = ren.to_array(transformations) @ \
+                  ren.to_array(ren.rotate(2 / 3 * math.pi, ren.make_float3(0, 1, 0)))
+with ren.mapped(vertex_shader_globals) as map:
+    map['World'] = ren.make_float4x4(transformations)
+transform[egg2.shape](egg2, vertex_shader_globals)
+
+transformations = ren.to_array(transformations) @ \
+                  ren.to_array(ren.rotate(2 / 3 * math.pi, ren.make_float3(0, 1, 0)))
+with ren.mapped(vertex_shader_globals) as map:
+    map['World'] = ren.make_float4x4(transformations)
+transform[egg3.shape](egg3, vertex_shader_globals)
 
 
 @ren.kernel_function  # Vertex shaders will be treated as kernel functions, the main function is implemented in the rasterizer
@@ -273,7 +346,6 @@ while True:
     ren.clear(raster.get_render_target())
     ren.clear(raster.get_depth_buffer(), 1.0)
 
-    '''
     with ren.mapped(fragment_shader_globals) as map:
         map["DiffuseMap"] = texture_descriptor1.get()
     #raster.draw_points(conic1)
@@ -288,15 +360,18 @@ while True:
         map["DiffuseMap"] = texture_descriptor3.get()
     #raster.draw_points(plate)
     raster.draw_triangles(plate, plate_mesh.indices)
-    '''
-
-
-    with ren.mapped(vertex_shader_globals) as map:
-        map["World"] = ren.matmul(ren.scale(1/3), ren.rotate(t, ren.make_float3(0, 1, 0)))
 
     with ren.mapped(fragment_shader_globals) as map:
         map["DiffuseMap"] = texture_descriptor4.get()
     raster.draw_triangles(egg1, egg1_mesh.indices)
+
+    with ren.mapped(fragment_shader_globals) as map:
+        map["DiffuseMap"] = texture_descriptor5.get()
+    raster.draw_triangles(egg2, egg2_mesh.indices)
+
+    with ren.mapped(fragment_shader_globals) as map:
+        map["DiffuseMap"] = texture_descriptor6.get()
+    raster.draw_triangles(egg3, egg3_mesh.indices)
 
 
     # Using a rasterizer to draw the point instead of handling everything by ourself.
