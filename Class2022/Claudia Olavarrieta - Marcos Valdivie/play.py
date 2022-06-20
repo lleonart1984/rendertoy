@@ -110,8 +110,6 @@ transform[egg3.shape](egg3, transformations)
 
 with ren.mapped(table) as map:
     map['N'] = ren.normalize(ren.make_float3(0, 1, 0))
-with ren.mapped(back) as map:
-    map['N'] = ren.normalize(ren.make_float3(0, 1, 0))
 
 
 presenter = ren.create_presenter(640, 480)
@@ -136,7 +134,7 @@ while True:
     with ren.mapped(vertex_shader_globals) as map:
         map["World"] = ren.scale(1 / 2)
         map["View"] = ren.look_at(
-            ren.make_float3(0, 0.3, 0.45),
+            ren.make_float3(0, 0.25, 0.45),
             ren.make_float3(0, 0.1, 0),
             ren.make_float3(0, 1, 0),
         )
