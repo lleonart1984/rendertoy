@@ -65,7 +65,7 @@ def manifold(slices, stacks) -> 'Mesh':
     vertex_count = (slices + 1)*(stacks + 1)
 
     # I setted (stacks + 1) to make the mesh as a cilinder,
-    # join points in the last and first columns forming triangles
+    # joining points in the last and first columns making triangles.
     # I think this is useful when making objects using revolutions
     # because this way we can add textures to the whole object,
     # the other way would be to make the last and first column to match
@@ -85,14 +85,13 @@ def manifold(slices, stacks) -> 'Mesh':
     with mapped(indices) as map:
         ids = np.arange(0, slices, 1)
         for s in range(stacks): # (stacks + 1) to join first and last columns
-            # The way the points indices in the columns were being calculated
+            # The way the point indices in the columns were being calculated
             # was not correct, we need to use the number of points
-            # in each column somehow. The '% vertex_count' is just to match
-            # the first and last columns as I said before
-            c00 = ids + s * slices % vertex_count
-            c01 = ids + s * slices + 1 % vertex_count
-            c10 = ids + (s + 1) * slices % vertex_count
-            c11 = ids + (s + 1) * slices + 1 % vertex_count
+            # in each column somehow.
+            c00 = ids + s * slices
+            c01 = ids + s * slices + 1
+            c10 = ids + (s + 1) * slices
+            c11 = ids + (s + 1) * slices + 1
 
             # np.concatenate([a,b,c]) concatenates the arrays a,b and c one after
             # the other, I think that is not the expected behavior here.
