@@ -63,6 +63,13 @@ def cartesian_product(*arrays):
 
 def manifold(slices, stacks) -> 'Mesh':
     vertex_count = (slices + 1)*(stacks + 1)
+
+    # I setted (stacks + 1) to make the mesh as a cilinder,
+    # joining points in the last and first columns making triangles.
+    # I think this is useful when making objects using revolutions
+    # because this way we can add textures to the whole object,
+    # the other way would be to make the last and first column to match
+    # index_count = slices * (stacks + 1) * 6
     index_count = slices * stacks * 6
     vertices = create_buffer(vertex_count, MeshVertex)
     vertex_size = MeshVertex.itemsize // 4
@@ -77,13 +84,22 @@ def manifold(slices, stacks) -> 'Mesh':
         map[:, 8:10] = pos[:, 0:2]
     with mapped(indices) as map:
         ids = np.arange(0, slices, 1)
-        for s in range(stacks):
-            c00 = ids + s
-            c01 = ids + 1
-            c10 = ids + (slices + 1)
-            c11 = ids + (1 + slices + 1)
-            map[s*slices*6:s*slices*6 + slices*3] = np.concatenate([c00, c01, c11], axis=-1).ravel()
-            map[s*slices*6 + slices*3:(s+1)*slices*6] = np.concatenate([c00, c11, c10], axis=-1).ravel()
+        for s in range(stacks): # (stacks + 1) to join first and last columns
+            # The way the point indices in the columns were being calculated
+            # was not correct, we need to use the number of points
+            # in each column somehow.
+            c00 = ids + s * slices
+            c01 = ids + s * slices + 1
+            c10 = ids + (s + 1) * slices
+            c11 = ids + (s + 1) * slices + 1
+
+            # np.concatenate([a,b,c]) concatenates the arrays a,b and c one after
+            # the other, I think that is not the expected behavior here.
+            # np.stack([a,b,c], axis=-1) zips the array elements as expected,
+            # making a np.array with shape=(n,3) where n is the length of each of
+            # the arrays a, b and c. np.ravel just flattens that array.
+            map[s*slices*6:s*slices*6 + slices*3] = np.stack([c00, c01, c11], axis=-1).ravel()
+            map[s*slices*6 + slices*3:(s+1)*slices*6] = np.stack([c00, c11, c10], axis=-1).ravel()
     return Mesh (vertices, indices)
 
 
