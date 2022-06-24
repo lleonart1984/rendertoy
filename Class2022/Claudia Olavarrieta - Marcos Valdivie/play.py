@@ -122,57 +122,54 @@ raster = ren.Raster(
     fragment_shader_globals         # buffer with the material texture
 )
 
-start_time = time.perf_counter()
+
+with ren.mapped(vertex_shader_globals) as map:
+    map["World"] = ren.scale(1 / 2)
+    map["View"] = ren.look_at(
+        ren.make_float3(0, 0.25, 0.45),
+        ren.make_float3(0, 0.1, 0),
+        ren.make_float3(0, 1, 0),
+    )
+    map["Proj"] = ren.perspective(aspect_ratio=presenter.width / presenter.height)
+
+ren.clear(raster.get_render_target())
+ren.clear(raster.get_depth_buffer(), 1.0)
+
+with ren.mapped(fragment_shader_globals) as map:
+    map["DiffuseMap"] = texture_descriptor1.get()
+raster.draw_triangles(conic1, conic1_mesh.indices)
+
+with ren.mapped(fragment_shader_globals) as map:
+    map["DiffuseMap"] = texture_descriptor2.get()
+raster.draw_triangles(conic2, conic2_mesh.indices)
+
+with ren.mapped(fragment_shader_globals) as map:
+    map["DiffuseMap"] = texture_descriptor3.get()
+raster.draw_triangles(plate, plate_mesh.indices)
+
+with ren.mapped(fragment_shader_globals) as map:
+    map["DiffuseMap"] = texture_descriptor4.get()
+raster.draw_triangles(egg1, egg1_mesh.indices)
+
+with ren.mapped(fragment_shader_globals) as map:
+    map["DiffuseMap"] = texture_descriptor6.get()
+raster.draw_triangles(egg2, egg2_mesh.indices)
+
+with ren.mapped(fragment_shader_globals) as map:
+    map["DiffuseMap"] = texture_descriptor5.get()
+raster.draw_triangles(egg3, egg3_mesh.indices)
+
+with ren.mapped(fragment_shader_globals) as map:
+    map["DiffuseMap"] = texture_descriptor7.get()
+raster.draw_triangles(table, table_mesh.indices)
+
+with ren.mapped(fragment_shader_globals) as map:
+    map["DiffuseMap"] = texture_descriptor8.get()
+raster.draw_triangles(back, back_mesh.indices)
+
+presenter.present()
 
 while True:
     event, arg = presenter.poll_events()
     if event == ren.Event.CLOSED:
         break
-
-    t = time.perf_counter() - start_time
-
-    with ren.mapped(vertex_shader_globals) as map:
-        map["World"] = ren.scale(1 / 2)
-        map["View"] = ren.look_at(
-            ren.make_float3(0, 0.25, 0.45),
-            ren.make_float3(0, 0.1, 0),
-            ren.make_float3(0, 1, 0),
-        )
-        map["Proj"] = ren.perspective(aspect_ratio=presenter.width / presenter.height)
-
-    ren.clear(raster.get_render_target())
-    ren.clear(raster.get_depth_buffer(), 1.0)
-
-    with ren.mapped(fragment_shader_globals) as map:
-        map["DiffuseMap"] = texture_descriptor1.get()
-    raster.draw_triangles(conic1, conic1_mesh.indices)
-
-    with ren.mapped(fragment_shader_globals) as map:
-        map["DiffuseMap"] = texture_descriptor2.get()
-    raster.draw_triangles(conic2, conic2_mesh.indices)
-
-    with ren.mapped(fragment_shader_globals) as map:
-        map["DiffuseMap"] = texture_descriptor3.get()
-    raster.draw_triangles(plate, plate_mesh.indices)
-    
-    with ren.mapped(fragment_shader_globals) as map:
-        map["DiffuseMap"] = texture_descriptor4.get()
-    raster.draw_triangles(egg1, egg1_mesh.indices)
-
-    with ren.mapped(fragment_shader_globals) as map:
-        map["DiffuseMap"] = texture_descriptor6.get()
-    raster.draw_triangles(egg2, egg2_mesh.indices)
-
-    with ren.mapped(fragment_shader_globals) as map:
-        map["DiffuseMap"] = texture_descriptor5.get()
-    raster.draw_triangles(egg3, egg3_mesh.indices)
-
-    with ren.mapped(fragment_shader_globals) as map:
-        map["DiffuseMap"] = texture_descriptor7.get()
-    raster.draw_triangles(table, table_mesh.indices)
-
-    with ren.mapped(fragment_shader_globals) as map:
-        map["DiffuseMap"] = texture_descriptor8.get()
-    raster.draw_triangles(back, back_mesh.indices)
-
-    presenter.present()
