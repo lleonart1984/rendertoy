@@ -1,23 +1,12 @@
 # RenderToy
 Collaborative project to develop renderers, scenes and computer graphic techniques.
 
-### Dependencies
+### Integrantes
 
-- Numpy (array and math computations on host)
+- Carlos Alejandro Arrieta Montes de Oca `C-512`
+- Juan Pablo Madrazo Vazquez `C-411`
+- José Alejandro Solís Fernández `C-412`  
 
-`conda install numpy`
+El informe del proyecto se encuentra en el archivo `informe.pdf`
 
-- pyopencl (parallel computation with OpenCL)
-
-`conda install pyopencl`
-
-You might need to add conda-forge in your sources.
-
-- PySDL2 (Rendering in a cross-platform window)
-
-`conda install -c conda-forge pysdl2`
-
-
-
-
-
+En la carpeta `models` está la imagen guía y capturas de las escenas generadas
