@@ -7,6 +7,6 @@ Collaborative project to develop renderers, scenes and computer graphic techniqu
 - Juan Pablo Madrazo Vazquez `C-411`
 - José Alejandro Solís Fernández `C-412`  
 
-El informe del proyecto se encuentra en el archivo `informe.pdf`
+El informe del proyecto se encuentra en el archivo `Informe.pdf`
 
 En la carpeta `models` está la imagen guía y capturas de las escenas generadas
