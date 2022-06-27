@@ -27,7 +27,9 @@ en el módulo ***figures_modelation.py***.
 
 - ***__perlin_noise_textures.py:__*** Se implementó el algoritmo de Perlin Noise para añadir texturas de mármol y madera
 a los objetos de la escena, aunque finalmente se decidió solo mostrar las texturas de mármol en los tres huevos, ya que
-que en las secciones de la fuente o en la mesa no se veía lo suficientemente realista.
+que en las secciones de la fuente o en la mesa no se veía lo suficientemente realista. Se utilizaron kernels de pyopencl
+para acelerar la creación de dichas texturas aprovechando la capacidad de la máquina de correr múltiples hilos al mismo 
+tiempo.
 
 ![marble](images/marble.png) Textura de mármol generada con Perlin Noise
 
