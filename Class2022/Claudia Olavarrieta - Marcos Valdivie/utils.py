@@ -1,5 +1,7 @@
 import rendering as ren
 import numpy as np
+import pyopencl as cl
+from PIL import Image
 
 @ren.kernel_struct
 class Transforms:
@@ -74,3 +76,13 @@ def create_and_map_textures(image):
         map[:, :, 0:3] = image / 255.0  # update rgb from image
         map[:, :, 3] = 1.0  # set alphas = 1.0
     return texture_memory, texture_descriptor
+
+def save_cl_image(climage, name):
+    width, height = climage.shape
+    arr = np.empty((height, width, 4), dtype=np.uint8)
+    cl.enqueue_copy(ren._core.__queue__, arr, climage, origin=(0, 0), region=(width, height)).wait()
+    save_image(arr[:, :, [2, 1, 0]], name)
+
+def save_image(image, name):
+    image = Image.fromarray(image)
+    image.save(f'{name}.png')

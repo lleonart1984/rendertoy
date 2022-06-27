@@ -78,10 +78,10 @@ def manifold(slices, stacks) -> 'Mesh':
     with mapped(indices) as map:
         ids = np.arange(0, slices, 1)
         for s in range(stacks + 1):
-            c00 = ids + s * slices % vertex_count
-            c01 = ids + s * slices + 1 % vertex_count
-            c10 = ids + (s + 1) * slices % vertex_count
-            c11 = ids + (s + 1) * slices + 1 % vertex_count
+            c00 = ids + s * slices
+            c01 = ids + s * slices + 1
+            c10 = ids + (s + 1) * slices
+            c11 = ids + (s + 1) * slices + 1
             map[s*slices*6:s*slices*6 + slices*3] = np.stack([c00, c01, c11], axis=-1).ravel()
             map[s*slices*6 + slices*3:(s+1)*slices*6] = np.stack([c00, c11, c10], axis=-1).ravel()
     return Mesh (vertices, indices)

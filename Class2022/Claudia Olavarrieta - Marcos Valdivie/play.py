@@ -14,13 +14,14 @@ fragment_shader_globals = ren.create_struct(Materials)
 ########################################
 ###           Textures               ###
 ########################################
-image_for_texture1 = np.array(Image.open(f"{ROOT_DIR}/models/marble1.jpg"))
-image_for_texture2 = np.array(Image.open(f"{ROOT_DIR}/models/marble2.jpg"))
-image_for_texture3 = np.array(Image.open(f"{ROOT_DIR}/models/marble3.jpg"))
+images_folder = f"{ROOT_DIR}/Class2022/Claudia Olavarrieta - Marcos Valdivie/images"
+image_for_texture1 = np.array(Image.open(f"{images_folder}/marble1.jpg"))
+image_for_texture2 = np.array(Image.open(f"{images_folder}/marble2.jpg"))
+image_for_texture3 = np.array(Image.open(f"{images_folder}/marble3.jpg"))
 image_for_texture4 = marble(200, 200, 0.0, 1.0, 1.5, 32.0)
 image_for_texture5 = 200 - marble(200, 200, 1.0, 1.0, 7.0, 32.0) * np.array([121, 50, 21]) * 200 / (256 * 256)
 image_for_texture6 = 200 - (256 - marble(200, 200, 0.0, 2.0, 9.0, 32.0)) * np.array([135, 206, 235]) * 200 / (256 * 256)
-image_for_texture7 = np.array(Image.open(f"{ROOT_DIR}/models/wood1.jpg"))
+image_for_texture7 = np.array(Image.open(f"{images_folder}/wood.jpg"))
 image_for_texture8 = np.repeat([135, 135, 120], 40000).reshape((200, 200, 3)).astype(np.uint8)
 texture_memory1, texture_descriptor1 = create_and_map_textures(image_for_texture1)
 texture_memory2, texture_descriptor2 = create_and_map_textures(image_for_texture2)
@@ -166,6 +167,23 @@ raster.draw_triangles(table, table_mesh.indices)
 with ren.mapped(fragment_shader_globals) as map:
     map["DiffuseMap"] = texture_descriptor8.get()
 raster.draw_triangles(back, back_mesh.indices)
+
+# save_cl_image(presenter.get_render_target(), 'final_image')
+
+'''
+raster.draw_points(conic1)
+raster.draw_points(conic2)
+raster.draw_points(plate)
+raster.draw_points(egg1)
+raster.draw_points(egg2)
+raster.draw_points(egg3)
+raster.draw_points(table)
+raster.draw_points(back)
+save_cl_image(presenter.get_render_target(), 'meshes')
+
+marble = marble(640, 480, 0.0, 2.0, 3.0, 32.0)
+save_image(marble, 'marble')
+'''
 
 presenter.present()
 
