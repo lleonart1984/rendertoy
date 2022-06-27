@@ -6,12 +6,4 @@
 
 # import tutorials.lesson04_mandelbrot_animation
 
-# import tutorials.lesson05_drawing_points
-
-import tutorials.lesson06_loading_obj
-
-# import tutorials.lesson07_generative_modeling
-
-# import tutorials.lesson08_rasterization
-
-# import tutorials.lesson09_texture_mapping
+import tutorials.lesson05_drawing_points

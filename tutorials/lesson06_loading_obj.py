@@ -1,4 +1,4 @@
-from tutorials.lesson_common import ROOT_DIR
+from lesson_common import ROOT_DIR
 
 import rendering as ren
 import time
@@ -11,7 +11,7 @@ In this lesson, a point cloud loaded from a wavefront obj file is rendered after
 
 
 # Load vertex buffer from obj
-visuals = ren.load_obj('./models/dragon.obj')
+visuals = ren.load_obj(f"{ROOT_DIR}/models/dragon.obj")
 mesh, material = visuals[0]
 vertex_buffer = mesh.vertices
 

@@ -1,4 +1,4 @@
-from tutorials.lesson_common import ROOT_DIR
+from lesson_common import ROOT_DIR
 
 import rendering as ren
 import time

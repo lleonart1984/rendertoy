@@ -1,4 +1,4 @@
-from tutorials.lesson_common import ROOT_DIR
+from lesson_common import ROOT_DIR
 
 import rendering as ren
 import time
@@ -121,10 +121,9 @@ while True:
 
     # update the transformation matrices from host every frame
     with ren.mapped(vertex_shader_globals) as map:
-        a = ren.matmul(
+        map["World"] = ren.matmul(
             ren.scale(1.0), ren.rotate(t, ren.make_float3(0, 1, 0))
         )
-        map["World"] = a
         map["View"] = ren.look_at(
             ren.make_float3(0, 0.3, 1.0),
             ren.make_float3(0, 0, 0),
@@ -138,7 +137,7 @@ while True:
     ren.clear(raster.get_render_target())
     ren.clear(raster.get_depth_buffer(), 1.0)
     # Using a rasterizer to draw the point instead of handling everything by ourself.
-    raster.draw_points(vertex_buffer)
-    #raster.draw_triangles(vertex_buffer, index_buffer)
+    # raster.draw_points(vertex_buffer)
+    raster.draw_triangles(vertex_buffer, index_buffer)
 
     presenter.present()
